@@ -28,7 +28,8 @@ impl Transaction for SelfTokenTransfer {
                 "1 yoctoNEAR",
                 "network-config",
                 &args.network,
-                "sign-with-legacy-keychain",
+                "sign-with-access-key-file",
+                &format!("/root/.near-credentials/testnet/{}.json", args.signer_id),
                 "send",
             ])
             .output()
