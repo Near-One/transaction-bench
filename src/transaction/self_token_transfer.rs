@@ -29,7 +29,10 @@ impl Transaction for SelfTokenTransfer {
                 "network-config",
                 &args.network,
                 "sign-with-access-key-file",
-                &format!("/root/.near-credentials/testnet/{}.json", args.signer_id),
+                &format!(
+                    "/root/.near-credentials/{}/{}.json",
+                    args.network, args.signer_id
+                ),
                 "send",
             ])
             .output()
