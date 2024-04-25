@@ -1,6 +1,11 @@
-use std::net::{AddrParseError, SocketAddr};
+use std::{
+    ffi::OsString,
+    net::{AddrParseError, SocketAddr},
+};
 
 use clap::{Args, Parser, Subcommand};
+use homedir::get_my_home;
+use regex::Regex;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -28,6 +33,9 @@ pub struct ExecArgs {
     /// Network identifier.
     #[clap(env, short, long, default_value = "testnet")]
     pub network: String,
+    #[clap(env, short, long, default_value = foo())]
+    /// Path to the location storing the account keys. Defaults to the user's directory.
+    pub key_path: String,
 }
 
 #[derive(Debug, Args)]
@@ -51,13 +59,21 @@ pub struct RunArgs {
 
 #[derive(Debug, Args)]
 pub struct TestArgs {
-    /// Type of the transaction to run.
+    /// Type of the transaction to run (regex).
     #[arg(env)]
-    pub kind: String,
+    pub kind: Regex,
     #[clap(flatten)]
     pub exec_args: ExecArgs,
 }
 
 fn parse_addr(arg: &str) -> Result<SocketAddr, AddrParseError> {
     arg.parse()
+}
+
+pub fn foo() -> OsString {
+    get_my_home()
+        .expect("can't find home dir")
+        .expect("can't find home dir")
+        .as_os_str()
+        .to_owned()
 }

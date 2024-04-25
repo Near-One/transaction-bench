@@ -200,6 +200,7 @@ mod tests {
             exec_args: ExecArgs {
                 signer_id: String::new(),
                 network: NETWORK.to_string(),
+                key_path: String::new(),
             },
             period: Duration::from_millis(1),
             metric_server_address: SocketAddr::from_str("0.0.0.0:9000").unwrap(),

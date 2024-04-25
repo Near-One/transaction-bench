@@ -5,7 +5,7 @@ use tracing::info;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 use transaction_bench::config::{Command, RunArgs, TestArgs};
 use transaction_bench::transaction::TransactionContext;
-use transaction_bench::{AppConfig, AppError, Engine, MetricServer, TransactionKind};
+use transaction_bench::{AppConfig, AppError, Engine, MetricServer};
 
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
@@ -39,16 +39,20 @@ async fn list(engine: Engine) -> Result<(), AppError> {
 }
 
 async fn test(args: TestArgs, engine: Engine) -> Result<(), AppError> {
-    let kind = TransactionKind::new(args.kind);
-    match engine.transactions().get(&kind) {
-        Some(tx) => {
+    let mut matched = false;
+    for (kind, tx) in engine.transactions() {
+        if args.kind.is_match(kind.as_str()) {
+            matched = true;
             let context = TransactionContext::new(tx.kind(), 1);
             info!("executing transaction {}", context);
             let outcome = tx.execute(context, &args.exec_args).await?;
             info!("completed transaction {outcome}");
-            Ok(())
         }
-        None => Err(AppError::UnknownTransactionType(kind)),
+    }
+    if matched {
+        Ok(())
+    } else {
+        Err(AppError::NoMatchedTransaction(args.kind))
     }
 }
 

@@ -1,4 +1,5 @@
 use derive_more::{Constructor, Display};
+use regex::Regex;
 use thiserror::Error;
 use tokio::io;
 
@@ -10,6 +11,8 @@ pub enum AppError {
     IOError(#[from] io::Error),
     #[error("transaction type {0} not known")]
     UnknownTransactionType(TransactionKind),
+    #[error("no match for {0}")]
+    NoMatchedTransaction(Regex),
     #[error("transaction error")]
     TransactionError(#[from] TransactionError),
     #[error("unknown error")]
