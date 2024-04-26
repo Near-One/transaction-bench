@@ -5,16 +5,17 @@ use tracing::{info, warn};
 use crate::{
     config::RunArgs,
     metrics::{Labels, Metrics},
-    transaction::TransactionContext,
-    AppError, Transaction,
+    Account, AppError, Transaction,
 };
 
 use super::{self_token_transfer::SelfTokenTransfer, TransactionKind};
 use tokio::{sync::oneshot::Receiver, task::JoinSet, time::interval};
 
+type Transactions = HashMap<TransactionKind, Arc<dyn Transaction>>;
+
 #[derive(Default)]
 pub struct Engine {
-    transactions: HashMap<TransactionKind, Arc<dyn Transaction>>,
+    transactions: Transactions,
 }
 
 impl Engine {
@@ -48,7 +49,7 @@ impl Engine {
     pub async fn run(
         &self,
         args: RunArgs,
-        metrics: &Metrics,
+        metrics: Arc<Metrics>,
         stop_signal: Receiver<()>,
     ) -> Result<(), AppError> {
         info!("starting transaction engine");
@@ -61,61 +62,74 @@ impl Engine {
         }
     }
 
-    async fn run_impl(&self, args: RunArgs, metrics: &Metrics) -> Result<(), AppError> {
+    async fn run_impl(&self, args: RunArgs, metrics: Arc<Metrics>) -> Result<(), AppError> {
         let mut interval = interval(args.period);
         loop {
             interval.tick().await;
-            self.run_all_once(&args, metrics).await;
+            self.run_all_once(&args, &metrics).await;
         }
     }
 
-    async fn run_all_once(&self, args: &RunArgs, metrics: &Metrics) {
+    async fn run_all_once(&self, args: &RunArgs, metrics: &Arc<Metrics>) {
         info!("running all transactions");
         let mut tasks = JoinSet::new();
-        for (kind, tx) in &self.transactions {
-            let labels = Labels::new(
-                kind.to_string(),
-                args.exec_args.network.clone(),
-                args.location.clone(),
-            );
-            metrics.attempted_transactions.get_or_create(&labels).inc();
-            for i in 0..args.count {
-                let tx = tx.clone();
-                let args = args.exec_args.clone();
-                tasks.spawn(async move {
-                    let context = TransactionContext::new(tx.kind(), i.into());
-                    info!("executing transaction {}", context);
-                    tx.execute(context, &args).await
-                });
-            }
+        for account in args.exec_args.accounts.clone() {
+            let metrics = metrics.clone();
+            let transactions = self.transactions.clone();
+            let args = args.clone();
+            tasks.spawn(async move {
+                run_account_transactions_once(transactions, args, account, metrics).await;
+            });
         }
         while let Some(join_result) = tasks.join_next().await {
-            match join_result {
-                Ok(tx_result) => match tx_result {
-                    Ok(outcome) => {
-                        info!("completed transaction {}", outcome);
-                        let labels = Labels::new(
-                            outcome.context.kind.to_string(),
-                            args.exec_args.network.clone(),
-                            args.location.clone(),
-                        );
-                        metrics.successful_transactions.get_or_create(&labels).inc();
-                        metrics
-                            .transaction_latency
-                            .get_or_create(&labels)
-                            .observe(outcome.latency.as_secs_f64());
-                    }
-                    Err(err) => {
-                        warn!("error during transaction {}", err);
-                        let labels = Labels::new(
-                            err.context.kind.to_string(),
-                            args.exec_args.network.clone(),
-                            args.location.clone(),
-                        );
-                        metrics.failed_transactions.get_or_create(&labels).inc();
-                    }
-                },
-                Err(err) => warn!("task join error: {err}"),
+            if let Err(err) = join_result {
+                warn!("error during account transactions {}", err);
+            }
+        }
+    }
+}
+
+async fn run_account_transactions_once(
+    transactions: Transactions,
+    args: RunArgs,
+    account: Account,
+    metrics: Arc<Metrics>,
+) {
+    for (kind, tx) in transactions {
+        let labels = Labels::new(
+            kind.to_string(),
+            account.network.clone(),
+            args.location.clone(),
+        );
+        metrics.attempted_transactions.get_or_create(&labels).inc();
+        for i in 0..args.count {
+            let tx = tx.clone();
+            info!("executing transaction {}#{} for {}", tx.kind(), i, account);
+            match tx.execute(&account, &args.exec_args.key_path).await {
+                Ok(outcome) => {
+                    info!(
+                        "completed transaction {}#{} for {}: {}",
+                        tx.kind(),
+                        i,
+                        account,
+                        outcome
+                    );
+                    metrics.successful_transactions.get_or_create(&labels).inc();
+                    metrics
+                        .transaction_latency
+                        .get_or_create(&labels)
+                        .observe(outcome.latency.as_secs_f64());
+                }
+                Err(err) => {
+                    warn!(
+                        "error during transaction {}#{} for {}: {}",
+                        tx.kind(),
+                        i,
+                        account,
+                        err
+                    );
+                    metrics.failed_transactions.get_or_create(&labels).inc();
+                }
             }
         }
     }
@@ -136,9 +150,8 @@ mod tests {
 
     use crate::{
         config::ExecArgs,
-        error::TransactionError,
         metrics::{create_registry_and_metrics, Labels},
-        TransactionOutcome,
+        Account, TransactionOutcome,
     };
 
     use super::*;
@@ -160,17 +173,10 @@ mod tests {
             TransactionKind(TEST_OK_TX_KIND.to_string())
         }
 
-        async fn execute(
-            &self,
-            context: TransactionContext,
-            _: &ExecArgs,
-        ) -> Result<TransactionOutcome, TransactionError> {
+        async fn execute(&self, _: &Account, _: &str) -> Result<TransactionOutcome, AppError> {
             self.exec_counter
                 .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            Ok(TransactionOutcome::new(
-                context,
-                std::time::Duration::from_millis(1),
-            ))
+            Ok(TransactionOutcome::new(std::time::Duration::from_millis(1)))
         }
     }
 
@@ -185,21 +191,16 @@ mod tests {
             TransactionKind(TEST_ERR_TX_KIND.to_string())
         }
 
-        async fn execute(
-            &self,
-            context: TransactionContext,
-            _: &ExecArgs,
-        ) -> Result<TransactionOutcome, TransactionError> {
+        async fn execute(&self, _: &Account, _: &str) -> Result<TransactionOutcome, AppError> {
             self.exec_counter.fetch_add(1, Ordering::SeqCst);
-            Err(TransactionError::new(context, "unknown error".to_string()))
+            Err(AppError::TransactionError("unknown error".to_string()))
         }
     }
 
     fn create_test_run_args() -> RunArgs {
         RunArgs {
             exec_args: ExecArgs {
-                signer_id: String::new(),
-                network: NETWORK.to_string(),
+                accounts: vec![Account::new(String::new(), NETWORK.to_string())],
                 key_path: String::new(),
             },
             period: Duration::from_millis(1),
@@ -228,7 +229,7 @@ mod tests {
             engine.add_transaction(ok_tx_clone);
             engine.add_transaction(err_tx_clone);
             engine
-                .run(create_test_run_args(), &metrics_clone, shutdown_signal)
+                .run(create_test_run_args(), metrics_clone, shutdown_signal)
                 .await
                 .unwrap();
         });

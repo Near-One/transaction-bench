@@ -1,9 +1,8 @@
-use derive_more::{Constructor, Display};
 use regex::Regex;
 use thiserror::Error;
 use tokio::io;
 
-use crate::transaction::{TransactionContext, TransactionKind};
+use crate::transaction::TransactionKind;
 
 #[derive(Error, Debug)]
 pub enum AppError {
@@ -13,15 +12,10 @@ pub enum AppError {
     UnknownTransactionType(TransactionKind),
     #[error("no match for {0}")]
     NoMatchedTransaction(Regex),
-    #[error("transaction error")]
-    TransactionError(#[from] TransactionError),
+    #[error("transaction error({0})")]
+    TransactionError(String),
+    #[error("cannot parse account and network from '{0}'")]
+    AccountParseError(String),
     #[error("unknown error")]
     Unknown,
-}
-
-#[derive(Error, Debug, Display, Constructor)]
-#[display("transaction error: {} ({})", context, reason)]
-pub struct TransactionError {
-    pub context: TransactionContext,
-    reason: String,
 }

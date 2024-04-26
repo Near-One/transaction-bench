@@ -1,9 +1,9 @@
-use crate::{config::ExecArgs, error::TransactionError, Transaction, TransactionOutcome};
+use crate::{Account, AppError, Transaction, TransactionOutcome};
 use async_trait::async_trait;
 use tokio::{process::Command, time::Instant};
 use tracing::{debug, warn};
 
-use super::{TransactionContext, TransactionKind};
+use super::TransactionKind;
 
 pub struct SelfTokenTransfer {}
 
@@ -15,23 +15,23 @@ impl Transaction for SelfTokenTransfer {
 
     async fn execute(
         &self,
-        context: TransactionContext,
-        args: &ExecArgs,
-    ) -> Result<TransactionOutcome, TransactionError> {
+        account: &Account,
+        key_path: &str,
+    ) -> Result<TransactionOutcome, AppError> {
         let now = Instant::now();
         let output_result = Command::new("near")
             .args([
                 "tokens",
-                &args.signer_id,
+                &account.signer_id,
                 "send-near",
-                &args.signer_id,
+                &account.signer_id,
                 "1 yoctoNEAR",
                 "network-config",
-                &args.network,
+                &account.network,
                 "sign-with-access-key-file",
                 &format!(
                     "{}/.near-credentials/{}/{}.json",
-                    args.key_path, args.network, args.signer_id
+                    key_path, account.network, account.signer_id
                 ),
                 "send",
             ])
@@ -47,23 +47,21 @@ impl Transaction for SelfTokenTransfer {
                         String::from_utf8_lossy(&output.stdout),
                         String::from_utf8_lossy(&output.stderr)
                     );
-                    Ok(TransactionOutcome::new(context, elapsed))
+                    Ok(TransactionOutcome::new(elapsed))
                 } else {
                     warn!(
                         "failure during call to near token send:\n{}\n{}",
                         String::from_utf8_lossy(&output.stdout),
                         String::from_utf8_lossy(&output.stderr)
                     );
-                    Err(TransactionError::new(
-                        context,
+                    Err(AppError::TransactionError(
                         "near token send-near failed".to_string(),
                     ))
                 }
             }
-            Err(err) => Err(TransactionError::new(
-                context,
-                format!("near CLI invocation failure ({err})"),
-            )),
+            Err(err) => Err(AppError::TransactionError(format!(
+                "near CLI invocation failure ({err})"
+            ))),
         }
     }
 }

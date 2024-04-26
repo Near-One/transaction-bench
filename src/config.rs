@@ -7,6 +7,8 @@ use clap::{Args, Parser, Subcommand};
 use homedir::get_my_home;
 use regex::Regex;
 
+use crate::Account;
+
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct AppConfig {
@@ -27,18 +29,15 @@ pub enum Command {
 /// Args needed to execute transactions.
 #[derive(Debug, Args, Default, Clone)]
 pub struct ExecArgs {
-    /// Name of the NEAR wallet account signing the transactions.
+    /// A list of <NEAR wallet account>:<network>.
     #[arg(env)]
-    pub signer_id: String,
-    /// Network identifier.
-    #[clap(env, short, long, default_value = "testnet")]
-    pub network: String,
+    pub accounts: Vec<Account>,
     #[clap(env, short, long, default_value = foo())]
     /// Path to the location storing the account keys. Defaults to the user's directory.
     pub key_path: String,
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Clone)]
 pub struct RunArgs {
     #[clap(flatten)]
     pub exec_args: ExecArgs,

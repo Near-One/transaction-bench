@@ -1,5 +1,8 @@
 #![forbid(unsafe_code)]
 
+pub mod account;
+pub use account::Account;
+
 pub mod config;
 pub use config::AppConfig;
 

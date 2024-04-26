@@ -4,7 +4,6 @@ use tokio::sync::oneshot;
 use tracing::info;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 use transaction_bench::config::{Command, RunArgs, TestArgs};
-use transaction_bench::transaction::TransactionContext;
 use transaction_bench::{AppConfig, AppError, Engine, MetricServer};
 
 #[tokio::main]
@@ -26,7 +25,7 @@ async fn run(args: RunArgs, engine: Engine) -> Result<(), AppError> {
     let (shutdown_notice, shutdown_signal) = oneshot::channel::<()>();
     let metric_server = MetricServer::new(args.metric_server_address)?;
     let metric_server_fut = metric_server.run(shutdown_notice);
-    let engine_fut = engine.run(args, &metric_server.metrics, shutdown_signal);
+    let engine_fut = engine.run(args, metric_server.metrics.clone(), shutdown_signal);
     try_join!(metric_server_fut, engine_fut).map(|_| ())
 }
 
@@ -43,10 +42,16 @@ async fn test(args: TestArgs, engine: Engine) -> Result<(), AppError> {
     for (kind, tx) in engine.transactions() {
         if args.kind.is_match(kind.as_str()) {
             matched = true;
-            let context = TransactionContext::new(tx.kind(), 1);
-            info!("executing transaction {}", context);
-            let outcome = tx.execute(context, &args.exec_args).await?;
-            info!("completed transaction {outcome}");
+            for account in args.exec_args.accounts.clone() {
+                info!("executing transaction {} for {}", tx.kind(), account);
+                let outcome = tx.execute(&account, &args.exec_args.key_path).await?;
+                info!(
+                    "completed transaction {} for {}: {}",
+                    tx.kind(),
+                    account,
+                    outcome
+                );
+            }
         }
     }
     if matched {
