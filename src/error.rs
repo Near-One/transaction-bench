@@ -14,7 +14,7 @@ pub enum AppError {
     NoMatchedTransaction(Regex),
     #[error("transaction error({0})")]
     TransactionError(String),
-    #[error("cannot parse account and network from '{0}'")]
+    #[error("cannot parse signer account, buddy account and network from '{0}'")]
     AccountParseError(String),
     #[error("unknown error")]
     Unknown,

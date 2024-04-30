@@ -5,6 +5,7 @@ use tracing::{info, warn};
 use crate::{
     config::RunArgs,
     metrics::{Labels, Metrics},
+    transaction::token_transfer::TokenTransfer,
     Account, AppError, Transaction,
 };
 
@@ -31,6 +32,7 @@ impl Engine {
         }
 
         add_transaction!(SelfTokenTransfer);
+        add_transaction!(TokenTransfer);
 
         Engine { transactions }
     }
@@ -200,7 +202,11 @@ mod tests {
     fn create_test_run_args() -> RunArgs {
         RunArgs {
             exec_args: ExecArgs {
-                accounts: vec![Account::new(String::new(), NETWORK.to_string())],
+                accounts: vec![Account::new(
+                    String::new(),
+                    String::new(),
+                    NETWORK.to_string(),
+                )],
                 key_path: String::new(),
             },
             period: Duration::from_millis(1),

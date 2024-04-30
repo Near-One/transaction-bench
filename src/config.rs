@@ -29,8 +29,9 @@ pub enum Command {
 /// Args needed to execute transactions.
 #[derive(Debug, Args, Default, Clone)]
 pub struct ExecArgs {
-    /// A list of <NEAR wallet account>:<network>.
-    #[arg(env)]
+    /// A list of <NEAR wallet account>:<NEAR wallet buddy account>:<network>.
+    /// Main account is used to sign transactions. Buddy account is the receiver of token transfers (where applicable)
+    #[arg(env, verbatim_doc_comment)]
     pub accounts: Vec<Account>,
     #[clap(env, short, long, default_value = foo())]
     /// Path to the location storing the account keys. Defaults to the user's directory.
