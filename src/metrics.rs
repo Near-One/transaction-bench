@@ -103,7 +103,7 @@ async fn metric_handler(state: State<Arc<Registry>>) -> impl IntoResponse {
         Ok(()) => (
             [(
                 header::CONTENT_TYPE,
-                "application/openmetrics-text; version=1.0.0; charset=utf-8",
+                "text/plain; version=0.0.4; charset=utf-8",
             )],
             buf,
         )
