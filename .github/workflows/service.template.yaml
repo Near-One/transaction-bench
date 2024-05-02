@@ -1,0 +1,68 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  labels:
+    cloud.googleapis.com/location: europe-north1
+  name: transaction-bench-eu
+  namespace: '679629718685'
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/maxScale: '1'
+        autoscaling.knative.dev/minScale: '1'
+        run.googleapis.com/client-name: cloud-console
+        run.googleapis.com/cpu-throttling: 'false'
+        run.googleapis.com/startup-cpu-boost: 'false'
+      labels:
+        run.googleapis.com/startupProbeType: Default
+    spec:
+      containerConcurrency: 80
+      containers:
+      - args:
+        - run
+        - tx-bench.testnet:tx-bench-buddy.testnet:testnet
+        - tx-bench.near:tx-bench-buddy.near:mainnet
+        env:
+        - name: LOCATION
+          value: europe-north1
+        - name: KEY_PATH
+          value: /root
+        image: nearone/transaction-bench:${IMAGE_TAG}
+        name: transaction-bench-1
+        ports:
+        - containerPort: 9000
+          name: http1
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 512Mi
+        startupProbe:
+          failureThreshold: 1
+          periodSeconds: 240
+          tcpSocket:
+            port: 9000
+          timeoutSeconds: 240
+        volumeMounts:
+        - mountPath: /root/.near-credentials/testnet
+          name: benchmark-wallet-testnet-cij-ned-ges
+        - mountPath: /root/.near-credentials/mainnet
+          name: benchmark-wallet-mainnet-vam-har-hev
+      serviceAccountName: 679629718685-compute@developer.gserviceaccount.com
+      timeoutSeconds: 300
+      volumes:
+      - name: benchmark-wallet-testnet-cij-ned-ges
+        secret:
+          items:
+          - key: latest
+            path: tx-bench.testnet.json
+          secretName: benchmark-wallet-testnet
+      - name: benchmark-wallet-mainnet-vam-har-hev
+        secret:
+          items:
+          - key: latest
+            path: tx-bench.near.json
+          secretName: benchmark-wallet-mainnet
+  traffic:
+  - latestRevision: true
+    percent: 100
