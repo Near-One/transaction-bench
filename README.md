@@ -3,7 +3,8 @@
 An application to measure the end user latency of transactions on the Near blockchain.
 
 ## Supported transactions
-- Token transfer
+- Token transfer to another account
+- Token transfer to self
 
 ## Usage
 Run locally with `cargo` or build and run as a docker image:
