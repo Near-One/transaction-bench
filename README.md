@@ -18,7 +18,7 @@ Check the program's help: `cargo run -- -h`.
 
 List the supported transactions: `cargo run -- list`.
 
-Run a single transaction once: `cargo run -- test self_token_transfer <SIGNER_ID>`.
+Run a single transaction once: `cargo run -- test token_transfer <SIGNER_ID> <RECEIVER_ID>`.
 
 Run the bechmarks until the program is manually halted: `cargo run -- run <SIGNER_ID>`.
 

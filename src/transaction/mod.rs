@@ -9,7 +9,6 @@ use crate::{Account, AppError};
 
 pub mod engine;
 
-mod self_token_transfer;
 mod token_transfer;
 
 #[derive(Debug, PartialEq, Eq, Hash, Display, From, Deref, Constructor, Clone)]

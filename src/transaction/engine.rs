@@ -9,7 +9,7 @@ use crate::{
     Account, AppError, Transaction,
 };
 
-use super::{self_token_transfer::SelfTokenTransfer, TransactionKind};
+use super::TransactionKind;
 use tokio::{sync::oneshot::Receiver, task::JoinSet, time::interval};
 
 type Transactions = HashMap<TransactionKind, Arc<dyn Transaction>>;
@@ -31,7 +31,6 @@ impl Engine {
             };
         }
 
-        add_transaction!(SelfTokenTransfer);
         add_transaction!(TokenTransfer);
 
         Engine { transactions }
