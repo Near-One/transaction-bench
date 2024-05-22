@@ -1,35 +1,36 @@
 use clap::Parser;
 use futures::try_join;
+use near_jsonrpc_client::JsonRpcClient;
 use tokio::sync::oneshot;
 use tracing::info;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
-use transaction_bench::config::{Command, RunArgs, TestArgs};
-use transaction_bench::{AppConfig, AppError, Engine, MetricServer};
+use transaction_bench::config::{Mode, Opts};
+use transaction_bench::{Engine, MetricServer};
 
 #[tokio::main]
-async fn main() -> Result<(), AppError> {
+async fn main() -> anyhow::Result<()> {
     setup_tracing();
-
-    let config = AppConfig::parse();
+    dotenv::dotenv().ok();
+    let opts = Opts::parse();
     let engine = Engine::with_default_transactions();
 
-    match config.command {
-        Command::Run(args) => run(args, engine).await,
-        Command::List => list(engine).await,
-        Command::Test(args) => test(args, engine).await,
+    match opts.mode {
+        Mode::Run => run(opts, engine).await,
+        Mode::List => list(engine).await,
+        Mode::Test => test(opts, engine).await,
     }
 }
 
-async fn run(args: RunArgs, engine: Engine) -> Result<(), AppError> {
-    info!("configuration: {:?}", args);
+async fn run(opts: Opts, engine: Engine) -> anyhow::Result<()> {
+    info!("configuration: {:?}", opts);
     let (shutdown_notice, shutdown_signal) = oneshot::channel::<()>();
-    let metric_server = MetricServer::new(args.metric_server_address)?;
+    let metric_server = MetricServer::new(opts.metric_server_address);
     let metric_server_fut = metric_server.run(shutdown_notice);
-    let engine_fut = engine.run(args, metric_server.metrics.clone(), shutdown_signal);
+    let engine_fut = engine.run(opts, metric_server.metrics.clone(), shutdown_signal);
     try_join!(metric_server_fut, engine_fut).map(|_| ())
 }
 
-async fn list(engine: Engine) -> Result<(), AppError> {
+async fn list(engine: Engine) -> anyhow::Result<()> {
     info!("list of supported transactions:");
     for tx in engine.transactions().values() {
         info!("  - {}", tx.kind());
@@ -37,28 +38,22 @@ async fn list(engine: Engine) -> Result<(), AppError> {
     Ok(())
 }
 
-async fn test(args: TestArgs, engine: Engine) -> Result<(), AppError> {
-    let mut matched = false;
+async fn test(opts: Opts, engine: Engine) -> anyhow::Result<()> {
+    let rpc_client = JsonRpcClient::connect(&opts.rpc_url);
     for (kind, tx) in engine.transactions() {
-        if args.kind.is_match(kind.as_str()) {
-            matched = true;
-            for account in args.exec_args.accounts.clone() {
-                info!("executing transaction {} for {}", tx.kind(), account);
-                let outcome = tx.execute(&account, &args.exec_args.key_path).await?;
-                info!(
-                    "completed transaction {} for {}: {}",
-                    tx.kind(),
-                    account,
-                    outcome
-                );
-            }
+        if *kind == opts.transaction_kind {
+            info!("executing transaction {} for {}", tx.kind(), opts.signer_id);
+            let outcome = tx.execute(&rpc_client, opts.clone()).await?;
+            info!(
+                "completed transaction {} for {}: {}",
+                tx.kind(),
+                opts.signer_id,
+                outcome
+            );
+            return Ok(());
         }
     }
-    if matched {
-        Ok(())
-    } else {
-        Err(AppError::NoMatchedTransaction(args.kind))
-    }
+    Ok(())
 }
 
 fn setup_tracing() {

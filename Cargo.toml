@@ -6,8 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0.86"
 axum = "0.7.5"
 clap = { version = "4.5.4", features = ["derive", "env", "string"] }
+dotenv = "0.15.0"
 prometheus-client = "0.22.2"
 tokio = { version = "1.37.0", features = ["rt-multi-thread", "tokio-macros", "parking_lot", "signal", "process"] }
 tracing = "0.1.40"
@@ -20,6 +22,11 @@ derive_more = { version = "=1.0.0-beta.6", features = ["display", "from", "deref
 futures = "0.3.30"
 regex = "1.10.4"
 homedir = "0.2.1"
+
+near-crypto = "0.21.2"
+near-jsonrpc-client = "0.9.0"
+near-jsonrpc-primitives = "0.21.2"
+near-primitives = "0.21.2"
 
 [dev-dependencies]
 more-asserts = "0.3.1"

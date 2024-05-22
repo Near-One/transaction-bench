@@ -1,18 +1,19 @@
+use near_jsonrpc_client::JsonRpcClient;
 use std::{collections::HashMap, sync::Arc};
 
 use tracing::{info, warn};
 
 use crate::{
-    config::RunArgs,
     metrics::{Labels, Metrics},
     transaction::token_transfer::TokenTransfer,
-    Account, AppError, Transaction,
+    TransactionSample,
 };
 
 use super::TransactionKind;
+use crate::config::Opts;
 use tokio::{sync::oneshot::Receiver, task::JoinSet, time::interval};
 
-type Transactions = HashMap<TransactionKind, Arc<dyn Transaction>>;
+type Transactions = HashMap<TransactionKind, Arc<dyn TransactionSample>>;
 
 #[derive(Default)]
 pub struct Engine {
@@ -27,7 +28,7 @@ impl Engine {
         macro_rules! add_transaction {
             ($name: ident) => {
                 let tx = Arc::new($name {});
-                transactions.insert(tx.kind(), tx as Arc<dyn Transaction>);
+                transactions.insert(tx.kind(), tx as Arc<dyn TransactionSample>);
             };
         }
 
@@ -37,25 +38,28 @@ impl Engine {
     }
 
     /// Adds a new transaction to be executed during `run` or `run_all_once`.
-    pub fn add_transaction(&mut self, tx: Arc<dyn Transaction>) -> Option<Arc<dyn Transaction>> {
+    pub fn add_transaction(
+        &mut self,
+        tx: Arc<dyn TransactionSample>,
+    ) -> Option<Arc<dyn TransactionSample>> {
         self.transactions.insert(tx.kind(), tx)
     }
 
     /// Returns the list of all registered transaction kinds.
-    pub fn transactions(&self) -> &HashMap<TransactionKind, Arc<dyn Transaction>> {
+    pub fn transactions(&self) -> &HashMap<TransactionKind, Arc<dyn TransactionSample>> {
         &self.transactions
     }
 
     /// Runs the engine until the program is stopped.
     pub async fn run(
         &self,
-        args: RunArgs,
+        opts: Opts,
         metrics: Arc<Metrics>,
         stop_signal: Receiver<()>,
-    ) -> Result<(), AppError> {
+    ) -> anyhow::Result<()> {
         info!("starting transaction engine");
         tokio::select! {
-            res = self.run_impl(args, metrics) => res,
+            res = self.run_impl(opts, metrics) => res,
             _ = stop_signal => {
                 info!("transaction engine shutting down");
                 Ok(())
@@ -63,25 +67,22 @@ impl Engine {
         }
     }
 
-    async fn run_impl(&self, args: RunArgs, metrics: Arc<Metrics>) -> Result<(), AppError> {
-        let mut interval = interval(args.period);
+    async fn run_impl(&self, opts: Opts, metrics: Arc<Metrics>) -> anyhow::Result<()> {
+        let mut interval = interval(opts.period);
         loop {
             interval.tick().await;
-            self.run_all_once(&args, &metrics).await;
+            self.run_all_once(opts.clone(), &metrics).await;
         }
     }
 
-    async fn run_all_once(&self, args: &RunArgs, metrics: &Arc<Metrics>) {
+    async fn run_all_once(&self, opts: Opts, metrics: &Arc<Metrics>) {
         info!("running all transactions");
         let mut tasks = JoinSet::new();
-        for account in args.exec_args.accounts.clone() {
-            let metrics = metrics.clone();
-            let transactions = self.transactions.clone();
-            let args = args.clone();
-            tasks.spawn(async move {
-                run_account_transactions_once(transactions, args, account, metrics).await;
-            });
-        }
+        let metrics = metrics.clone();
+        let transactions = self.transactions.clone();
+        tasks.spawn(async move {
+            run_account_transactions_once(transactions, opts, metrics).await;
+        });
         while let Some(join_result) = tasks.join_next().await {
             if let Err(err) = join_result {
                 warn!("error during account transactions {}", err);
@@ -92,27 +93,38 @@ impl Engine {
 
 async fn run_account_transactions_once(
     transactions: Transactions,
-    args: RunArgs,
-    account: Account,
+    opts: Opts,
     metrics: Arc<Metrics>,
 ) {
-    for (kind, tx) in transactions {
-        let labels = Labels::new(
-            kind.to_string(),
-            account.network.clone(),
-            args.location.clone(),
-        );
+    let network = if opts.rpc_url.contains("mainnet") {
+        "mainnet"
+    } else if opts.rpc_url.contains("testnet") {
+        "testnet"
+    } else {
+        "localnet"
+    };
+
+    let rpc_client = JsonRpcClient::connect(&opts.rpc_url);
+
+    for (kind, tx_sample) in transactions {
+        let labels = Labels::new(kind.to_string(), network.to_string(), opts.location.clone());
         metrics.attempted_transactions.get_or_create(&labels).inc();
-        for i in 0..args.count {
-            let tx = tx.clone();
-            info!("executing transaction {}#{} for {}", tx.kind(), i, account);
-            match tx.execute(&account, &args.exec_args.key_path).await {
+        for i in 0..opts.repeats_number {
+            let tx_sample = tx_sample.clone();
+            info!(
+                "executing transaction {}#{} for {}",
+                tx_sample.kind(),
+                i,
+                opts.signer_id
+            );
+
+            match tx_sample.execute(&rpc_client, opts.clone()).await {
                 Ok(outcome) => {
                     info!(
                         "completed transaction {}#{} for {}: {}",
-                        tx.kind(),
+                        tx_sample.kind(),
                         i,
-                        account,
+                        opts.signer_id,
                         outcome
                     );
                     metrics.successful_transactions.get_or_create(&labels).inc();
@@ -124,9 +136,9 @@ async fn run_account_transactions_once(
                 Err(err) => {
                     warn!(
                         "error during transaction {}#{} for {}: {}",
-                        tx.kind(),
+                        tx_sample.kind(),
                         i,
-                        account,
+                        opts.signer_id,
                         err
                     );
                     metrics.failed_transactions.get_or_create(&labels).inc();
@@ -147,20 +159,19 @@ mod tests {
 
     use async_trait::async_trait;
     use more_asserts::assert_ge;
+    use near_crypto::{KeyType, SecretKey};
     use tokio::{sync::oneshot, time::sleep};
 
+    use crate::config::Mode;
     use crate::{
-        config::ExecArgs,
         metrics::{create_registry_and_metrics, Labels},
-        Account, TransactionOutcome,
+        TransactionOutcome,
     };
 
     use super::*;
 
-    const TEST_OK_TX_KIND: &str = "test_ok";
-    const TEST_ERR_TX_KIND: &str = "test_err";
     const LOCATION: &str = "eu";
-    const NETWORK: &str = "localnet";
+    const NETWORK: &str = "testnet";
     const MIN_EXECUTIONS_IN_ONE_SECOND: u64 = 10;
 
     #[derive(Default)]
@@ -169,12 +180,16 @@ mod tests {
     }
 
     #[async_trait]
-    impl Transaction for TestOkTransaction {
+    impl TransactionSample for TestOkTransaction {
         fn kind(&self) -> TransactionKind {
-            TransactionKind(TEST_OK_TX_KIND.to_string())
+            TransactionKind::TokenTransfer
         }
 
-        async fn execute(&self, _: &Account, _: &str) -> Result<TransactionOutcome, AppError> {
+        async fn execute(
+            &self,
+            _rpc_client: &JsonRpcClient,
+            _opts: Opts,
+        ) -> anyhow::Result<TransactionOutcome> {
             self.exec_counter
                 .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             Ok(TransactionOutcome::new(std::time::Duration::from_millis(1)))
@@ -187,31 +202,33 @@ mod tests {
     }
 
     #[async_trait]
-    impl Transaction for TestErrTransaction {
+    impl TransactionSample for TestErrTransaction {
         fn kind(&self) -> TransactionKind {
-            TransactionKind(TEST_ERR_TX_KIND.to_string())
+            TransactionKind::FungibleTokenTransfer
         }
 
-        async fn execute(&self, _: &Account, _: &str) -> Result<TransactionOutcome, AppError> {
+        async fn execute(
+            &self,
+            _rpc_client: &JsonRpcClient,
+            _opts: Opts,
+        ) -> anyhow::Result<TransactionOutcome> {
             self.exec_counter.fetch_add(1, Ordering::SeqCst);
-            Err(AppError::TransactionError("unknown error".to_string()))
+            Err(anyhow::anyhow!("unknown error".to_string()))
         }
     }
 
-    fn create_test_run_args() -> RunArgs {
-        RunArgs {
-            exec_args: ExecArgs {
-                accounts: vec![Account::new(
-                    String::new(),
-                    String::new(),
-                    NETWORK.to_string(),
-                )],
-                key_path: String::new(),
-            },
+    fn create_test_run_opts() -> Opts {
+        Opts {
+            mode: Mode::Run,
+            rpc_url: "https://rpc.testnet.near.org".to_string(),
+            signer_id: "cat.near".parse().unwrap(),
+            signer_key: SecretKey::from_random(KeyType::ED25519),
+            receiver_id: "dog.near".parse().unwrap(),
+            transaction_kind: TransactionKind::TokenTransfer,
             period: Duration::from_millis(1),
             metric_server_address: SocketAddr::from_str("0.0.0.0:9000").unwrap(),
             location: LOCATION.to_string(),
-            count: 1,
+            repeats_number: 1,
         }
     }
 
@@ -234,7 +251,7 @@ mod tests {
             engine.add_transaction(ok_tx_clone);
             engine.add_transaction(err_tx_clone);
             engine
-                .run(create_test_run_args(), metrics_clone, shutdown_signal)
+                .run(create_test_run_opts(), metrics_clone, shutdown_signal)
                 .await
                 .unwrap();
         });
@@ -242,7 +259,7 @@ mod tests {
         handle.abort();
 
         let labels = Labels::new(
-            TEST_OK_TX_KIND.to_string(),
+            ok_tx.kind().to_string(),
             NETWORK.to_string(),
             LOCATION.to_string(),
         );
@@ -261,7 +278,7 @@ mod tests {
         );
 
         let labels = Labels::new(
-            TEST_ERR_TX_KIND.to_string(),
+            err_tx.kind().to_string(),
             NETWORK.to_string(),
             LOCATION.to_string(),
         );

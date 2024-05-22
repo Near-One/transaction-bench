@@ -17,8 +17,6 @@ use tokio::sync::oneshot::Sender;
 use tower_http::timeout::TimeoutLayer;
 use tracing::info;
 
-use crate::AppError;
-
 #[derive(Clone, Debug, Hash, PartialEq, Eq, EncodeLabelSet, Constructor)]
 pub struct Labels {
     kind: String,
@@ -40,16 +38,16 @@ pub struct MetricServer {
 }
 
 impl MetricServer {
-    pub fn new(address: SocketAddr) -> Result<Self, AppError> {
+    pub fn new(address: SocketAddr) -> Self {
         let (registry, metrics) = create_registry_and_metrics();
-        Ok(Self {
+        Self {
             registry,
             address,
             metrics,
-        })
+        }
     }
 
-    pub async fn run(&self, shutdown_notice: Sender<()>) -> Result<(), AppError> {
+    pub async fn run(&self, shutdown_notice: Sender<()>) -> anyhow::Result<()> {
         info!("starting metrics server on {}", self.address);
 
         let listener = TcpListener::bind(self.address).await?;

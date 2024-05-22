@@ -2,27 +2,31 @@ use core::fmt;
 use std::time::Duration;
 
 use async_trait::async_trait;
-use derive_more::{Constructor, Deref, Display, From};
+use derive_more::{Constructor, Display, From};
 use humantime::format_duration;
+use near_jsonrpc_client::JsonRpcClient;
 
-use crate::{Account, AppError};
+use crate::config::Opts;
 
 pub mod engine;
 
 mod token_transfer;
 
-#[derive(Debug, PartialEq, Eq, Hash, Display, From, Deref, Constructor, Clone)]
-pub struct TransactionKind(String);
+#[derive(clap::ValueEnum, Debug, PartialEq, Eq, Hash, Display, From, Clone)]
+pub enum TransactionKind {
+    TokenTransfer,
+    FungibleTokenTransfer,
+}
 
 #[async_trait]
-pub trait Transaction: Send + Sync {
+pub trait TransactionSample: Send + Sync {
     fn kind(&self) -> TransactionKind;
 
     async fn execute(
         &self,
-        account: &Account,
-        key_path: &str,
-    ) -> Result<TransactionOutcome, AppError>;
+        rpc_client: &JsonRpcClient,
+        opts: Opts,
+    ) -> anyhow::Result<TransactionOutcome>;
 }
 
 #[derive(Debug, Constructor)]

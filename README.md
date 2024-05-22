@@ -20,7 +20,7 @@ List the supported transactions: `cargo run -- list`.
 
 Run a single transaction once: `cargo run -- test token_transfer <SIGNER_ID> <RECEIVER_ID>`.
 
-Run the bechmarks until the program is manually halted: `cargo run -- run <SIGNER_ID>`.
+Run the benchmarks until the program is manually halted: `cargo run -- run <SIGNER_ID>`.
 
 ## CI
 The CI checks that the project compiles successfully at every commit. Docker images are pushed to the registry only by tagged builds.
