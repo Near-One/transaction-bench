@@ -260,6 +260,8 @@ mod tests {
             signer_id: "cat.near".parse().unwrap(),
             signer_key: SecretKey::from_random(KeyType::ED25519),
             receiver_id: "dog.near".parse().unwrap(),
+            wrap_near_id: "frog.near".parse().unwrap(),
+            ft_account_id: "bear.near".parse().unwrap(),
             transaction_kind: TransactionKind::TokenTransferDefault,
             period: Duration::from_millis(1),
             metric_server_address: SocketAddr::from_str("0.0.0.0:9000").unwrap(),
