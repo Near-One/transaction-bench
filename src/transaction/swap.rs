@@ -35,22 +35,19 @@ impl TransactionSample for Swap {
             nonce: nonce + 1,
             receiver_id: "wrap.near".parse().unwrap(),
             block_hash,
-            actions: vec![Action::FunctionCall(Box::new(FunctionCallAction {
-                method_name: "near_deposit".to_string(),
-                args: serde_json::json!({})
-                    .to_string()
-                    .into_bytes(),
-                gas: 100_000_000_000_000, // 100 TeraGas
-                deposit: 1_000_000_000_000_000_000_000, // 0.001 NEAR
-            })),
-                          Action::FunctionCall(Box::new(FunctionCallAction {
-                              method_name: "ft_transfer_call".to_string(),
-                              args: serde_json::json!({"msg": "{\"actions\":[{\"pool_id\":3879,\"token_in\":\"wrap.near\",\"token_out\":\"usdt.tether-token.near\",\"amount_in\":\"1000000000000000000000\",\"min_amount_out\":\"1\"}]}","amount": "1000000000000000000000","receiver_id": "v2.ref-finance.near"})
-                                  .to_string()
-                                  .into_bytes(),
-                              gas: 100_000_000_000_000, // 100 TeraGas
-                              deposit: 1,
-                          })),
+            actions: vec![
+                Action::FunctionCall(Box::new(FunctionCallAction {
+                    method_name: "near_deposit".to_string(),
+                    args: serde_json::json!({}).to_string().into_bytes(),
+                    gas: 100_000_000_000_000, // 100 TeraGas
+                    deposit: 1_000_000_000_000_000_000_000, // 0.001 NEAR
+                })),
+                Action::FunctionCall(Box::new(FunctionCallAction {
+                    method_name: "ft_transfer_call".to_string(),
+                    args: serde_json::json!({"msg": "{\"actions\":[{\"pool_id\":3879,\"token_in\":\"wrap.near\",\"token_out\":\"usdt.tether-token.near\",\"amount_in\":\"1000000000000000000000\",\"min_amount_out\":\"1\"}]}","amount": "1000000000000000000000","receiver_id": "v2.ref-finance.near"}).to_string().into_bytes(),
+                    gas: 100_000_000_000_000, // 100 TeraGas
+                    deposit: 1,
+                })),
             ],
         };
         RpcSendTransactionRequest {

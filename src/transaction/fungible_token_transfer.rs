@@ -37,12 +37,9 @@ impl TransactionSample for FungibleTokenTransfer {
             block_hash,
             actions: vec![Action::FunctionCall(Box::new(FunctionCallAction {
                 method_name: "ft_transfer".to_string(),
-                args: serde_json::json!({
-                    "amount": "1",
-                    "receiver_id": opts.receiver_id,
-                })
-                .to_string()
-                .into_bytes(),
+                args: serde_json::json!({"amount": "1","receiver_id": opts.receiver_id})
+                    .to_string()
+                    .into_bytes(),
                 gas: 100_000_000_000_000, // 100 TeraGas
                 deposit: 1,
             }))],
