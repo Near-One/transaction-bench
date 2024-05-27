@@ -1,13 +1,12 @@
 use crate::config::Opts;
-use crate::{TransactionOutcome, TransactionSample};
+use crate::TransactionSample;
 use async_trait::async_trait;
-use near_jsonrpc_client::{methods, JsonRpcClient};
-use near_jsonrpc_primitives::types::query::QueryResponseKind;
+use near_crypto::InMemorySigner;
+use near_jsonrpc_primitives::types::transactions::RpcSendTransactionRequest;
 use near_primitives::action::FunctionCallAction;
+use near_primitives::hash::CryptoHash;
 use near_primitives::transaction::{Action, Transaction};
-use near_primitives::types::BlockReference;
-use tokio::time::Instant;
-use tracing::{debug, warn};
+use near_primitives::types::Nonce;
 
 use super::TransactionKind;
 
@@ -19,37 +18,23 @@ impl TransactionSample for FungibleTokenTransfer {
         TransactionKind::FungibleTokenTransfer
     }
 
-    async fn execute(
+    fn get_name(&self) -> &str {
+        "USDT FT transfer"
+    }
+
+    fn get_transaction_request(
         &self,
-        rpc_client: &JsonRpcClient,
+        signer: &InMemorySigner,
         opts: Opts,
-    ) -> anyhow::Result<TransactionOutcome> {
-        let signer = near_crypto::InMemorySigner::from_secret_key(
-            opts.signer_id.clone(),
-            opts.signer_key.clone(),
-        );
-
-        let access_key_response = rpc_client
-            .call(methods::query::RpcQueryRequest {
-                block_reference: BlockReference::latest(),
-                request: near_primitives::views::QueryRequest::ViewAccessKey {
-                    account_id: signer.account_id.clone(),
-                    public_key: signer.public_key.clone(),
-                },
-            })
-            .await?;
-
-        let current_nonce = match access_key_response.kind {
-            QueryResponseKind::AccessKey(access_key) => access_key.nonce,
-            _ => return Err(anyhow::anyhow!("Unreachable code")),
-        };
-
+        nonce: Nonce,
+        block_hash: CryptoHash,
+    ) -> RpcSendTransactionRequest {
         let transaction = Transaction {
             signer_id: signer.account_id.clone(),
             public_key: signer.public_key.clone(),
-            nonce: current_nonce + 1,
+            nonce: nonce + 1,
             receiver_id: "usdt.tether-token.near".parse().unwrap(),
-            block_hash: access_key_response.block_hash,
+            block_hash,
             actions: vec![Action::FunctionCall(Box::new(FunctionCallAction {
                 method_name: "ft_transfer".to_string(),
                 args: serde_json::json!({
@@ -62,26 +47,9 @@ impl TransactionSample for FungibleTokenTransfer {
                 deposit: 1,
             }))],
         };
-        let request = methods::send_tx::RpcSendTransactionRequest {
-            signed_transaction: transaction.sign(&signer),
+        RpcSendTransactionRequest {
+            signed_transaction: transaction.sign(signer),
             wait_until: Default::default(),
-        };
-
-        let now = Instant::now();
-
-        match rpc_client.call(request).await {
-            Ok(response) => {
-                debug!(
-                    "successful USDT FT transfer, status: {:?}\n",
-                    response.final_execution_status,
-                );
-                let elapsed = now.elapsed();
-                Ok(TransactionOutcome::new(elapsed))
-            }
-            Err(err) => {
-                warn!("failure during USDT FT transfer:\n{}\n", err);
-                Err(anyhow::anyhow!("USDT FT transfer failed: {}", err))
-            }
         }
     }
 }

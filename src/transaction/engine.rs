@@ -129,7 +129,7 @@ async fn run_account_transactions_once(
             match tx_sample.execute(&rpc_client, opts.clone()).await {
                 Ok(outcome) => {
                     info!(
-                        "completed transaction {}#{} for {}: {}",
+                        "completed transaction {}#{} for {}: {:?}",
                         tx_sample.kind(),
                         i,
                         opts.signer_id,
@@ -139,7 +139,7 @@ async fn run_account_transactions_once(
                     metrics
                         .transaction_latency
                         .get_or_create(&labels)
-                        .observe(outcome.latency.as_secs_f64());
+                        .observe(outcome.as_secs_f64());
                 }
                 Err(err) => {
                     warn!(
@@ -167,14 +167,14 @@ mod tests {
 
     use async_trait::async_trait;
     use more_asserts::assert_ge;
-    use near_crypto::{KeyType, SecretKey};
+    use near_crypto::{InMemorySigner, KeyType, SecretKey};
+    use near_jsonrpc_primitives::types::transactions::RpcSendTransactionRequest;
+    use near_primitives::hash::CryptoHash;
+    use near_primitives::types::Nonce;
     use tokio::{sync::oneshot, time::sleep};
 
     use crate::config::Mode;
-    use crate::{
-        metrics::{create_registry_and_metrics, Labels},
-        TransactionOutcome,
-    };
+    use crate::metrics::{create_registry_and_metrics, Labels};
 
     use super::*;
 
@@ -193,14 +193,28 @@ mod tests {
             TransactionKind::TokenTransferDefault
         }
 
+        fn get_name(&self) -> &str {
+            unimplemented!();
+        }
+
+        fn get_transaction_request(
+            &self,
+            _: &InMemorySigner,
+            _: Opts,
+            _: Nonce,
+            _: CryptoHash,
+        ) -> RpcSendTransactionRequest {
+            unimplemented!();
+        }
+
         async fn execute(
             &self,
             _rpc_client: &JsonRpcClient,
             _opts: Opts,
-        ) -> anyhow::Result<TransactionOutcome> {
+        ) -> anyhow::Result<Duration> {
             self.exec_counter
                 .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            Ok(TransactionOutcome::new(std::time::Duration::from_millis(1)))
+            Ok(std::time::Duration::from_millis(1))
         }
     }
 
@@ -215,11 +229,25 @@ mod tests {
             TransactionKind::FungibleTokenTransfer
         }
 
+        fn get_name(&self) -> &str {
+            unimplemented!();
+        }
+
+        fn get_transaction_request(
+            &self,
+            _: &InMemorySigner,
+            _: Opts,
+            _: Nonce,
+            _: CryptoHash,
+        ) -> RpcSendTransactionRequest {
+            unimplemented!();
+        }
+
         async fn execute(
             &self,
             _rpc_client: &JsonRpcClient,
             _opts: Opts,
-        ) -> anyhow::Result<TransactionOutcome> {
+        ) -> anyhow::Result<Duration> {
             self.exec_counter.fetch_add(1, Ordering::SeqCst);
             Err(anyhow::anyhow!("unknown error".to_string()))
         }

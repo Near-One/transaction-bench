@@ -41,7 +41,7 @@ pub struct Opts {
     #[clap(long, env)]
     pub receiver_id: AccountId,
     /// Transaction kind
-    #[clap(long, env, value_enum, default_value = "token_transfer")]
+    #[clap(long, env, value_enum, default_value = "token-transfer-default")]
     pub transaction_kind: TransactionKind,
     /// Number of times each transaction is performed at every benchmarking run
     #[clap(long, env, default_value_t = 1)]

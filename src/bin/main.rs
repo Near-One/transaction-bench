@@ -45,7 +45,7 @@ async fn test(opts: Opts, engine: Engine) -> anyhow::Result<()> {
             info!("executing transaction {} for {}", tx.kind(), opts.signer_id);
             let outcome = tx.execute(&rpc_client, opts.clone()).await?;
             info!(
-                "completed transaction {} for {}: {}",
+                "completed transaction {} for {}: {:?}",
                 tx.kind(),
                 opts.signer_id,
                 outcome
