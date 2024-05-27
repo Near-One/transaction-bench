@@ -29,7 +29,7 @@ impl TransactionSample for Swap {
         nonce: Nonce,
         block_hash: CryptoHash,
     ) -> RpcSendTransactionRequest {
-        let msg =  format!("{{\"actions\":[{{\"pool_id\":3879,\"token_in\":\"{}\",\"token_out\":\"{}\",\"amount_in\":\"1000000000000000000000\",\"min_amount_out\":\"1\"}}]}}", opts.wrap_near_id, opts.ft_account_id);
+        let msg =  format!("{{\"actions\":[{{\"pool_id\":{},\"token_in\":\"{}\",\"token_out\":\"{}\",\"amount_in\":\"1000000000000000000000\",\"min_amount_out\":\"1\"}}]}}", opts.pool_id, opts.wrap_near_id, opts.ft_account_id);
         let transaction = Transaction {
             signer_id: signer.account_id.clone(),
             public_key: signer.public_key.clone(),

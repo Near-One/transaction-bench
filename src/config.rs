@@ -46,6 +46,9 @@ pub struct Opts {
     /// FT account id
     #[clap(long, env)]
     pub ft_account_id: AccountId,
+    /// Pool id for swap command
+    #[clap(long, env)]
+    pub pool_id: u32,
     /// Transaction kind
     #[clap(long, env, value_enum, default_value = "token-transfer-default")]
     pub transaction_kind: TransactionKind,
