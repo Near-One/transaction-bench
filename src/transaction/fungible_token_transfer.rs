@@ -33,7 +33,7 @@ impl TransactionSample for FungibleTokenTransfer {
             signer_id: signer.account_id.clone(),
             public_key: signer.public_key.clone(),
             nonce: nonce + 1,
-            receiver_id: "usdt.tether-token.near".parse().unwrap(),
+            receiver_id: opts.ft_account_id,
             block_hash,
             actions: vec![Action::FunctionCall(Box::new(FunctionCallAction {
                 method_name: "ft_transfer".to_string(),

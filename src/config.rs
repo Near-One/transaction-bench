@@ -40,6 +40,12 @@ pub struct Opts {
     /// Receiver account id
     #[clap(long, env)]
     pub receiver_id: AccountId,
+    /// wrap.near account id (different for testnet)
+    #[clap(long, env)]
+    pub wrap_near_id: AccountId,
+    /// FT account id
+    #[clap(long, env)]
+    pub ft_account_id: AccountId,
     /// Transaction kind
     #[clap(long, env, value_enum, default_value = "token-transfer-default")]
     pub transaction_kind: TransactionKind,

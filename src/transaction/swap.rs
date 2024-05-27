@@ -25,15 +25,16 @@ impl TransactionSample for Swap {
     fn get_transaction_request(
         &self,
         signer: &InMemorySigner,
-        _opts: Opts,
+        opts: Opts,
         nonce: Nonce,
         block_hash: CryptoHash,
     ) -> RpcSendTransactionRequest {
+        let msg =  format!("{{\"actions\":[{{\"pool_id\":3879,\"token_in\":\"{}\",\"token_out\":\"{}\",\"amount_in\":\"1000000000000000000000\",\"min_amount_out\":\"1\"}}]}}", opts.wrap_near_id, opts.ft_account_id);
         let transaction = Transaction {
             signer_id: signer.account_id.clone(),
             public_key: signer.public_key.clone(),
             nonce: nonce + 1,
-            receiver_id: "wrap.near".parse().unwrap(),
+            receiver_id: opts.wrap_near_id,
             block_hash,
             actions: vec![
                 Action::FunctionCall(Box::new(FunctionCallAction {
@@ -44,7 +45,8 @@ impl TransactionSample for Swap {
                 })),
                 Action::FunctionCall(Box::new(FunctionCallAction {
                     method_name: "ft_transfer_call".to_string(),
-                    args: serde_json::json!({"msg": "{\"actions\":[{\"pool_id\":3879,\"token_in\":\"wrap.near\",\"token_out\":\"usdt.tether-token.near\",\"amount_in\":\"1000000000000000000000\",\"min_amount_out\":\"1\"}]}","amount": "1000000000000000000000","receiver_id": "v2.ref-finance.near"}).to_string().into_bytes(),
+                    args: serde_json::json!(
+                        {"msg": msg,"amount": "1000000000000000000000","receiver_id": "v2.ref-finance.near"}).to_string().into_bytes(),
                     gas: 100_000_000_000_000, // 100 TeraGas
                     deposit: 1,
                 })),
