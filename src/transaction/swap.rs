@@ -46,7 +46,7 @@ impl TransactionSample for Swap {
                 Action::FunctionCall(Box::new(FunctionCallAction {
                     method_name: "ft_transfer_call".to_string(),
                     args: serde_json::json!(
-                        {"msg": msg,"amount": "1000000000000000000000","receiver_id": "v2.ref-finance.near"}).to_string().into_bytes(),
+                        {"msg": msg,"amount": "1000000000000000000000","receiver_id": opts.exchange_id}).to_string().into_bytes(),
                     gas: 100_000_000_000_000, // 100 TeraGas
                     deposit: 1,
                 })),
