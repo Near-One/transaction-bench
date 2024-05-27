@@ -1,79 +1,58 @@
-use std::{
-    ffi::OsString,
-    net::{AddrParseError, SocketAddr},
-};
+use crate::TransactionKind;
+use clap::{Parser, Subcommand};
+use near_crypto::SecretKey;
+use near_primitives::types::AccountId;
+use std::net::SocketAddr;
 
-use clap::{Args, Parser, Subcommand};
-use homedir::get_my_home;
-use regex::Regex;
-
-use crate::Account;
-
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-pub struct AppConfig {
-    #[clap(subcommand)]
-    pub command: Command,
-}
-
-#[derive(Debug, Subcommand)]
-pub enum Command {
+#[derive(clap::ValueEnum, Debug, Clone, Subcommand)]
+pub enum Mode {
     /// Run all transactions continuously.
-    Run(RunArgs),
+    Run,
     /// Display the available transaction types.
     List,
     /// Run a single transaction once.
-    Test(TestArgs),
+    Test,
 }
 
-/// Args needed to execute transactions.
-#[derive(Debug, Args, Default, Clone)]
-pub struct ExecArgs {
-    /// A list of <NEAR wallet account>:<NEAR wallet buddy account>:<network>.
-    /// Main account is used to sign transactions. Buddy account is the receiver of token transfers (where applicable)
-    #[arg(env, verbatim_doc_comment)]
-    pub accounts: Vec<Account>,
-    #[clap(env, short, long, default_value = foo())]
-    /// Path to the location storing the account keys. Defaults to the user's directory.
-    pub key_path: String,
-}
-
-#[derive(Debug, Args, Clone)]
-pub struct RunArgs {
-    #[clap(flatten)]
-    pub exec_args: ExecArgs,
+/// Start options
+#[derive(Parser, Debug, Clone)]
+#[clap(
+    version,
+    author,
+    about,
+    disable_help_subcommand(true),
+    propagate_version(true),
+    next_line_help(true)
+)]
+pub struct Opts {
+    /// Mode
+    #[clap(short, long, env, value_enum, default_value = "list")]
+    pub mode: Mode,
+    /// RPC URL
+    #[clap(long, env)]
+    pub rpc_url: String,
+    /// Signer account id
+    #[clap(long, env)]
+    pub signer_id: AccountId,
+    /// Signer private key
+    #[clap(long, env)]
+    pub signer_key: SecretKey,
+    /// Receiver account id
+    #[clap(long, env)]
+    pub receiver_id: AccountId,
+    /// Transaction kind
+    #[clap(long, env, value_enum, default_value = "token-transfer-default")]
+    pub transaction_kind: TransactionKind,
+    /// Number of times each transaction is performed at every benchmarking run
+    #[clap(long, env, default_value_t = 1)]
+    pub repeats_number: u32,
     /// Time difference between two benchmarking runs.
-    #[arg(env, short, long, value_parser = humantime::parse_duration, default_value = "15m")]
+    #[clap(env, short, long, value_parser = humantime::parse_duration, default_value = "15m")]
     pub period: std::time::Duration,
     /// Metric server address.
-    #[clap(env, short, long, default_value = "0.0.0.0:9000")]
-    #[arg(value_parser = parse_addr)]
+    #[clap(env, long, default_value = "0.0.0.0:9000")]
     pub metric_server_address: SocketAddr,
     /// Geographical location identifier.
     #[clap(env, short, long, default_value = "unknown")]
     pub location: String,
-    /// How many times each transaction is performed at every benchmarking run.
-    #[clap(env, short, long, default_value = "1")]
-    pub count: u8,
-}
-
-#[derive(Debug, Args)]
-pub struct TestArgs {
-    /// Type of the transaction to run (regex).
-    #[arg(env)]
-    pub kind: Regex,
-    #[clap(flatten)]
-    pub exec_args: ExecArgs,
-}
-
-fn parse_addr(arg: &str) -> Result<SocketAddr, AddrParseError> {
-    arg.parse()
-}
-
-pub fn foo() -> OsString {
-    get_my_home()
-        .expect("can't find home dir")
-        .expect("can't find home dir")
-        .as_os_str()
-        .to_owned()
 }
