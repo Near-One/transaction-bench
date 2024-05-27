@@ -10,12 +10,19 @@ use crate::config::Opts;
 
 pub mod engine;
 
-mod token_transfer;
+mod fungible_token_transfer;
+mod swap;
+mod token_transfer_default;
+mod token_transfer_final;
+mod token_transfer_included_final;
 
 #[derive(clap::ValueEnum, Debug, PartialEq, Eq, Hash, Display, From, Clone)]
 pub enum TransactionKind {
-    TokenTransfer,
+    TokenTransferDefault,
+    TokenTransferIncludedFinal,
+    TokenTransferFinal,
     FungibleTokenTransfer,
+    Swap,
 }
 
 #[async_trait]

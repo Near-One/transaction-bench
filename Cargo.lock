@@ -4296,6 +4296,7 @@ dependencies = [
  "near-primitives",
  "prometheus-client",
  "regex",
+ "serde_json",
  "thiserror",
  "tokio",
  "tower-http",

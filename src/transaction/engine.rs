@@ -5,7 +5,11 @@ use tracing::{info, warn};
 
 use crate::{
     metrics::{Labels, Metrics},
-    transaction::token_transfer::TokenTransfer,
+    transaction::{
+        fungible_token_transfer::FungibleTokenTransfer, swap::Swap,
+        token_transfer_default::TokenTransferDefault, token_transfer_final::TokenTransferFinal,
+        token_transfer_included_final::TokenTransferIncludedFinal,
+    },
     TransactionSample,
 };
 
@@ -32,7 +36,11 @@ impl Engine {
             };
         }
 
-        add_transaction!(TokenTransfer);
+        add_transaction!(TokenTransferDefault);
+        add_transaction!(TokenTransferFinal);
+        add_transaction!(TokenTransferIncludedFinal);
+        add_transaction!(FungibleTokenTransfer);
+        add_transaction!(Swap);
 
         Engine { transactions }
     }
@@ -182,7 +190,7 @@ mod tests {
     #[async_trait]
     impl TransactionSample for TestOkTransaction {
         fn kind(&self) -> TransactionKind {
-            TransactionKind::TokenTransfer
+            TransactionKind::TokenTransferDefault
         }
 
         async fn execute(
@@ -224,7 +232,7 @@ mod tests {
             signer_id: "cat.near".parse().unwrap(),
             signer_key: SecretKey::from_random(KeyType::ED25519),
             receiver_id: "dog.near".parse().unwrap(),
-            transaction_kind: TransactionKind::TokenTransfer,
+            transaction_kind: TransactionKind::TokenTransferDefault,
             period: Duration::from_millis(1),
             metric_server_address: SocketAddr::from_str("0.0.0.0:9000").unwrap(),
             location: LOCATION.to_string(),

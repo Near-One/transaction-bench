@@ -11,12 +11,12 @@ use tracing::{debug, warn};
 
 use super::TransactionKind;
 
-pub struct TokenTransfer {}
+pub struct TokenTransferDefault {}
 
 #[async_trait]
-impl TransactionSample for TokenTransfer {
+impl TransactionSample for TokenTransferDefault {
     fn kind(&self) -> TransactionKind {
-        TransactionKind::TokenTransfer
+        TransactionKind::TokenTransferDefault
     }
 
     async fn execute(
