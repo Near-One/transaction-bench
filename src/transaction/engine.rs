@@ -262,6 +262,7 @@ mod tests {
             receiver_id: "dog.near".parse().unwrap(),
             wrap_near_id: "frog.near".parse().unwrap(),
             ft_account_id: "bear.near".parse().unwrap(),
+            exchange_id: "flamingo.near".parse().unwrap(),
             pool_id: 0,
             transaction_kind: TransactionKind::TokenTransferDefault,
             period: Duration::from_millis(1),
