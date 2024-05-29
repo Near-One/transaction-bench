@@ -39,9 +39,10 @@ async fn list(engine: Engine) -> anyhow::Result<()> {
 }
 
 async fn test(opts: Opts, engine: Engine) -> anyhow::Result<()> {
+    info!("running selected transactions: {:?}", opts.transaction_kind);
     let rpc_client = JsonRpcClient::connect(&opts.rpc_url);
     for (kind, tx) in engine.transactions() {
-        if *kind == opts.transaction_kind {
+        if opts.transaction_kind.contains(kind) {
             info!("executing transaction {} for {}", tx.kind(), opts.signer_id);
             let outcome = tx.execute(&rpc_client, opts.clone()).await?;
             info!(

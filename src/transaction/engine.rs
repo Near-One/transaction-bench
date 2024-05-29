@@ -84,7 +84,7 @@ impl Engine {
     }
 
     async fn run_all_once(&self, opts: Opts, metrics: &Arc<Metrics>) {
-        info!("running all transactions");
+        info!("running selected transactions: {:?}", opts.transaction_kind);
         let mut tasks = JoinSet::new();
         let metrics = metrics.clone();
         let transactions = self.transactions.clone();
@@ -108,6 +108,8 @@ async fn run_account_transactions_once(
         "mainnet"
     } else if opts.rpc_url.contains("testnet") {
         "testnet"
+    } else if opts.rpc_url.contains("statelessnet") {
+        "statelessnet"
     } else {
         "localnet"
     };
@@ -115,6 +117,9 @@ async fn run_account_transactions_once(
     let rpc_client = JsonRpcClient::connect(&opts.rpc_url);
 
     for (kind, tx_sample) in transactions {
+        if !opts.transaction_kind.is_empty() && !opts.transaction_kind.contains(&kind) {
+            continue;
+        }
         let labels = Labels::new(kind.to_string(), network.to_string(), opts.location.clone());
         metrics.attempted_transactions.get_or_create(&labels).inc();
         for i in 0..opts.repeats_number {
@@ -264,7 +269,7 @@ mod tests {
             ft_account_id: "bear.near".parse().unwrap(),
             exchange_id: "flamingo.near".parse().unwrap(),
             pool_id: 0,
-            transaction_kind: TransactionKind::TokenTransferDefault,
+            transaction_kind: vec![],
             period: Duration::from_millis(1),
             metric_server_address: SocketAddr::from_str("0.0.0.0:9000").unwrap(),
             location: LOCATION.to_string(),

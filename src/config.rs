@@ -6,11 +6,11 @@ use std::net::SocketAddr;
 
 #[derive(clap::ValueEnum, Debug, Clone, Subcommand)]
 pub enum Mode {
-    /// Run all transactions continuously.
+    /// Run selected transactions continuously.
     Run,
     /// Display the available transaction types.
     List,
-    /// Run a single transaction once.
+    /// Run selected transactions once.
     Test,
 }
 
@@ -53,8 +53,8 @@ pub struct Opts {
     #[clap(long, env)]
     pub pool_id: u32,
     /// Transaction kind
-    #[clap(long, env, value_enum, default_value = "token-transfer-default")]
-    pub transaction_kind: TransactionKind,
+    #[clap(long, env, value_delimiter = ',')]
+    pub transaction_kind: Vec<TransactionKind>,
     /// Number of times each transaction is performed at every benchmarking run
     #[clap(long, env, default_value_t = 1)]
     pub repeats_number: u32,

@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use derive_more::{Display, From};
 use near_crypto::InMemorySigner;
 use near_jsonrpc_client::{methods, JsonRpcClient};
 use near_jsonrpc_primitives::types::query::QueryResponseKind;
@@ -7,6 +6,7 @@ use near_jsonrpc_primitives::types::transactions::RpcSendTransactionRequest;
 use near_primitives::hash::CryptoHash;
 use near_primitives::types::{BlockReference, Nonce};
 use std::time::Duration;
+use strum_macros::Display;
 use tokio::time::Instant;
 use tracing::{debug, warn};
 
@@ -20,7 +20,8 @@ mod token_transfer_default;
 mod token_transfer_final;
 mod token_transfer_included_final;
 
-#[derive(clap::ValueEnum, Debug, PartialEq, Eq, Hash, Display, From, Clone)]
+#[derive(clap::ValueEnum, Debug, PartialEq, Eq, Hash, Display, Clone)]
+#[strum(serialize_all = "kebab-case")]
 pub enum TransactionKind {
     TokenTransferDefault,
     TokenTransferIncludedFinal,
