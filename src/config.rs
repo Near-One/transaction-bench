@@ -6,12 +6,10 @@ use std::net::SocketAddr;
 
 #[derive(clap::ValueEnum, Debug, Clone, Subcommand)]
 pub enum Mode {
-    /// Run selected transactions continuously.
-    Run,
     /// Display the available transaction types.
     List,
-    /// Run selected transactions once.
-    Test,
+    /// Run selected transactions continuously.
+    Run,
 }
 
 /// Start options

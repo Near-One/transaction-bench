@@ -131,7 +131,10 @@ async fn run_account_transactions_once(
                 opts.signer_id
             );
 
-            match tx_sample.execute(&rpc_client, opts.clone()).await {
+            match tx_sample
+                .execute(&rpc_client, opts.clone(), &metrics, &labels)
+                .await
+            {
                 Ok(outcome) => {
                     info!(
                         "completed transaction {}#{} for {}: {:?}",
@@ -216,6 +219,8 @@ mod tests {
             &self,
             _rpc_client: &JsonRpcClient,
             _opts: Opts,
+            _metrics: &Arc<Metrics>,
+            _labels: &Labels,
         ) -> anyhow::Result<Duration> {
             self.exec_counter
                 .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -252,6 +257,8 @@ mod tests {
             &self,
             _rpc_client: &JsonRpcClient,
             _opts: Opts,
+            _metrics: &Arc<Metrics>,
+            _labels: &Labels,
         ) -> anyhow::Result<Duration> {
             self.exec_counter.fetch_add(1, Ordering::SeqCst);
             Err(anyhow::anyhow!("unknown error".to_string()))

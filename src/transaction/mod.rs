@@ -7,12 +7,14 @@ use near_jsonrpc_primitives::types::transactions::{
 };
 use near_primitives::hash::CryptoHash;
 use near_primitives::types::{BlockReference, Nonce};
+use std::sync::Arc;
 use std::time::Duration;
 use strum_macros::Display;
 use tokio::time::Instant;
 use tracing::{debug, warn};
 
 use crate::config::Opts;
+use crate::metrics::{Labels, Metrics};
 
 pub mod engine;
 
@@ -46,7 +48,13 @@ pub trait TransactionSample: Send + Sync {
         block_hash: CryptoHash,
     ) -> RpcSendTransactionRequest;
 
-    async fn execute(&self, rpc_client: &JsonRpcClient, opts: Opts) -> anyhow::Result<Duration> {
+    async fn execute(
+        &self,
+        rpc_client: &JsonRpcClient,
+        opts: Opts,
+        metrics: &Arc<Metrics>,
+        labels: &Labels,
+    ) -> anyhow::Result<Duration> {
         let now = Instant::now();
 
         let signer =
@@ -85,7 +93,9 @@ pub trait TransactionSample: Send + Sync {
             }
             Err(err) => {
                 match err.handler_error() {
-                    Some(RpcTransactionError::TimeoutError) => {}
+                    Some(RpcTransactionError::TimeoutError) => {
+                        metrics.timeouts.get_or_create(labels).inc();
+                    }
                     _ => {
                         warn!("failure during {}:\n{}\n", self.get_name(), err);
                         return Err(anyhow::anyhow!("{} failed: {}", self.get_name(), err));
@@ -107,7 +117,9 @@ pub trait TransactionSample: Send + Sync {
                         .await
                     {
                         Err(err) => match err.handler_error() {
-                            Some(RpcTransactionError::TimeoutError) => {}
+                            Some(RpcTransactionError::TimeoutError) => {
+                                metrics.timeouts.get_or_create(labels).inc();
+                            }
                             _ => {
                                 warn!(
                                     "failure during tx status request, {}:\n{}\n",

@@ -1,6 +1,5 @@
 use clap::Parser;
 use futures::try_join;
-use near_jsonrpc_client::JsonRpcClient;
 use tokio::sync::oneshot;
 use tracing::info;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
@@ -15,9 +14,8 @@ async fn main() -> anyhow::Result<()> {
     let engine = Engine::with_default_transactions();
 
     match opts.mode {
-        Mode::Run => run(opts, engine).await,
         Mode::List => list(engine).await,
-        Mode::Test => test(opts, engine).await,
+        Mode::Run => run(opts, engine).await,
     }
 }
 
@@ -34,25 +32,6 @@ async fn list(engine: Engine) -> anyhow::Result<()> {
     info!("list of supported transactions:");
     for tx in engine.transactions().values() {
         info!("  - {}", tx.kind());
-    }
-    Ok(())
-}
-
-async fn test(opts: Opts, engine: Engine) -> anyhow::Result<()> {
-    info!("running selected transactions: {:?}", opts.transaction_kind);
-    let rpc_client = JsonRpcClient::connect(&opts.rpc_url);
-    for (kind, tx) in engine.transactions() {
-        if opts.transaction_kind.contains(kind) {
-            info!("executing transaction {} for {}", tx.kind(), opts.signer_id);
-            let outcome = tx.execute(&rpc_client, opts.clone()).await?;
-            info!(
-                "completed transaction {} for {}: {:?}",
-                tx.kind(),
-                opts.signer_id,
-                outcome
-            );
-            return Ok(());
-        }
     }
     Ok(())
 }

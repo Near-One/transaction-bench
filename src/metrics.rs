@@ -28,6 +28,7 @@ pub struct Metrics {
     pub attempted_transactions: Family<Labels, Counter>,
     pub successful_transactions: Family<Labels, Counter>,
     pub failed_transactions: Family<Labels, Counter>,
+    pub timeouts: Family<Labels, Counter>,
     pub transaction_latency: Family<Labels, Histogram>,
 }
 
@@ -130,6 +131,8 @@ pub(crate) fn create_registry_and_metrics() -> (Arc<Registry>, Arc<Metrics>) {
         "Number of failed transactions",
         failed_transactions.clone(),
     );
+    let timeouts = Family::<Labels, Counter>::default();
+    registry.register("timeouts", "Number of timeouts", timeouts.clone());
     let transaction_latency = Family::<Labels, Histogram>::new_with_constructor(|| {
         Histogram::new(exponential_buckets(2.0, 2.0, 6))
     });
@@ -143,6 +146,7 @@ pub(crate) fn create_registry_and_metrics() -> (Arc<Registry>, Arc<Metrics>) {
         attempted_transactions,
         successful_transactions,
         failed_transactions,
+        timeouts,
         transaction_latency,
     };
     (Arc::new(registry), Arc::new(metrics))
