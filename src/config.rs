@@ -24,7 +24,7 @@ pub enum Mode {
 )]
 pub struct Opts {
     /// Mode
-    #[clap(short, long, env, value_enum, default_value = "list")]
+    #[clap(long, env, value_enum, default_value = "list")]
     pub mode: Mode,
     /// RPC URL
     #[clap(long, env)]
@@ -38,13 +38,13 @@ pub struct Opts {
     /// Receiver account id
     #[clap(long, env)]
     pub receiver_id: AccountId,
-    /// wrap.near account id (different for testnet)
+    /// wrap.near account id (different for testnet), used for swap
     #[clap(long, env)]
     pub wrap_near_id: AccountId,
-    /// FT account id
+    /// FT account id, used for swap and FT transfer
     #[clap(long, env)]
     pub ft_account_id: AccountId,
-    /// Exchange account id
+    /// Exchange account id, used for swap
     #[clap(long, env)]
     pub exchange_id: AccountId,
     /// Pool id for swap command
@@ -56,7 +56,7 @@ pub struct Opts {
     /// Number of times each transaction is performed at every benchmarking run
     #[clap(long, env, default_value_t = 1)]
     pub repeats_number: u32,
-    /// Time difference between two benchmarking runs.
+    /// Time difference between benchmarking runs
     #[clap(env, short, long, value_parser = humantime::parse_duration, default_value = "15m")]
     pub period: std::time::Duration,
     /// Metric server address.

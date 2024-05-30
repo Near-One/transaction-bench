@@ -3,24 +3,20 @@
 An application to measure the end user latency of transactions on the Near blockchain.
 
 ## Supported transactions
-- Token transfer to another account
-- Token transfer to self
+- Token transfer with default parameters
+- Token transfer with [`wait_until: IncludedFinal`](https://docs.near.org/api/rpc/transactions#tx-status-result)
+- Token transfer with [`wait_until: Final`](https://docs.near.org/api/rpc/transactions#tx-status-result)
+- Swap NEAR -> USDT
+- FT USDT transfer
 
 ## Usage
 Run locally with `cargo` or build and run as a docker image:
 ```
 docker build -t tx-bench .
-
 docker run --rm -it tx-bench
 ```
 
-Check the program's help: `cargo run -- -h`.
-
-List the supported transactions: `cargo run -- list`.
-
-Run a single transaction once: `cargo run -- test token_transfer <SIGNER_ID> <RECEIVER_ID>`.
-
-Run the benchmarks until the program is manually halted: `cargo run -- run <SIGNER_ID>`.
+You can also run it without Docker, follow the usual Rust workflow.
 
 ## CI
 The CI checks that the project compiles successfully at every commit. Docker images are pushed to the registry only by tagged builds.
