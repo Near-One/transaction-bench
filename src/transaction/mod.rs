@@ -2,7 +2,9 @@ use async_trait::async_trait;
 use near_crypto::InMemorySigner;
 use near_jsonrpc_client::{methods, JsonRpcClient};
 use near_jsonrpc_primitives::types::query::QueryResponseKind;
-use near_jsonrpc_primitives::types::transactions::RpcSendTransactionRequest;
+use near_jsonrpc_primitives::types::transactions::{
+    RpcSendTransactionRequest, RpcTransactionError, TransactionInfo,
+};
 use near_primitives::hash::CryptoHash;
 use near_primitives::types::{BlockReference, Nonce};
 use std::time::Duration;
@@ -47,10 +49,8 @@ pub trait TransactionSample: Send + Sync {
     async fn execute(&self, rpc_client: &JsonRpcClient, opts: Opts) -> anyhow::Result<Duration> {
         let now = Instant::now();
 
-        let signer = near_crypto::InMemorySigner::from_secret_key(
-            opts.signer_id.clone(),
-            opts.signer_key.clone(),
-        );
+        let signer =
+            InMemorySigner::from_secret_key(opts.signer_id.clone(), opts.signer_key.clone());
 
         let access_key_response = rpc_client
             .call(methods::query::RpcQueryRequest {
@@ -74,18 +74,59 @@ pub trait TransactionSample: Send + Sync {
             access_key_response.block_hash,
         );
 
-        match rpc_client.call(request).await {
+        match rpc_client.call(request.clone()).await {
             Ok(response) => {
                 debug!(
                     "successful {}, status: {:?}\n",
                     self.get_name(),
                     response.final_execution_status,
                 );
-                Ok(now.elapsed())
+                return Ok(now.elapsed());
             }
             Err(err) => {
-                warn!("failure during {}:\n{}\n", self.get_name(), err);
-                Err(anyhow::anyhow!("{} failed: {}", self.get_name(), err))
+                match err.handler_error() {
+                    Some(RpcTransactionError::TimeoutError) => {}
+                    _ => {
+                        warn!("failure during {}:\n{}\n", self.get_name(), err);
+                        return Err(anyhow::anyhow!("{} failed: {}", self.get_name(), err));
+                    }
+                }
+                loop {
+                    match rpc_client
+                        .call(methods::tx::RpcTransactionStatusRequest {
+                            transaction_info: TransactionInfo::TransactionId {
+                                tx_hash: request.signed_transaction.get_hash(),
+                                sender_account_id: request
+                                    .signed_transaction
+                                    .transaction
+                                    .signer_id
+                                    .clone(),
+                            },
+                            wait_until: request.wait_until.clone(),
+                        })
+                        .await
+                    {
+                        Err(err) => match err.handler_error() {
+                            Some(RpcTransactionError::TimeoutError) => {}
+                            _ => {
+                                warn!(
+                                    "failure during tx status request, {}:\n{}\n",
+                                    self.get_name(),
+                                    err
+                                );
+                                return Err(anyhow::anyhow!("{} failed: {}", self.get_name(), err));
+                            }
+                        },
+                        Ok(response) => {
+                            debug!(
+                                "successful {}, status: {:?}\n",
+                                self.get_name(),
+                                response.final_execution_status,
+                            );
+                            return Ok(now.elapsed());
+                        }
+                    }
+                }
             }
         }
     }
