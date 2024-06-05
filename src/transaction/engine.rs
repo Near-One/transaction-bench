@@ -1,7 +1,11 @@
-use near_jsonrpc_client::JsonRpcClient;
+use near_crypto::InMemorySigner;
+use near_jsonrpc_client::{methods, JsonRpcClient};
+use near_jsonrpc_primitives::types::query::QueryResponseKind;
+use near_primitives::hash::CryptoHash;
+use near_primitives::types::{BlockReference, Nonce};
 use std::{collections::HashMap, sync::Arc};
 
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 use crate::{
     metrics::{Labels, Metrics},
@@ -115,31 +119,46 @@ async fn run_account_transactions_once(
     };
 
     let rpc_client = JsonRpcClient::connect(&opts.rpc_url);
+    let (nonce, block_hash) = match get_nonce_and_block_hash(&opts, &rpc_client).await {
+        Ok(res) => res,
+        Err(err) => {
+            error!("Error: {}", err);
+            return;
+        }
+    };
 
-    for (kind, tx_sample) in transactions {
-        if !opts.transaction_kind.is_empty() && !opts.transaction_kind.contains(&kind) {
+    for (tx_number, (kind, tx_sample)) in transactions.iter().enumerate() {
+        if !opts.transaction_kind.is_empty() && !opts.transaction_kind.contains(kind) {
             continue;
         }
         let labels = Labels::new(kind.to_string(), network.to_string(), opts.location.clone());
         metrics.attempted_transactions.get_or_create(&labels).inc();
-        for i in 0..opts.repeats_number {
+        for repeats_number in 0..opts.repeats_number {
             let tx_sample = tx_sample.clone();
             info!(
                 "executing transaction {}#{} for {}",
                 tx_sample.kind(),
-                i,
+                repeats_number,
                 opts.signer_id
             );
 
+            let current_nonce = nonce.saturating_add((tx_number + repeats_number + 1) as u64);
             match tx_sample
-                .execute(&rpc_client, opts.clone(), &metrics, &labels)
+                .execute(
+                    &rpc_client,
+                    opts.clone(),
+                    &metrics,
+                    &labels,
+                    current_nonce,
+                    block_hash,
+                )
                 .await
             {
                 Ok(outcome) => {
                     info!(
                         "completed transaction {}#{} for {}: {:?}",
                         tx_sample.kind(),
-                        i,
+                        repeats_number,
                         opts.signer_id,
                         outcome
                     );
@@ -153,7 +172,7 @@ async fn run_account_transactions_once(
                     warn!(
                         "error during transaction {}#{} for {}: {}",
                         tx_sample.kind(),
-                        i,
+                        repeats_number,
                         opts.signer_id,
                         err
                     );
@@ -162,6 +181,35 @@ async fn run_account_transactions_once(
             }
         }
     }
+}
+
+async fn get_nonce_and_block_hash(
+    opts: &Opts,
+    rpc_client: &JsonRpcClient,
+) -> anyhow::Result<(Nonce, CryptoHash)> {
+    if opts.rpc_url.contains("fake") {
+        return Ok((0, CryptoHash::new()));
+    }
+    let signer = InMemorySigner::from_secret_key(opts.signer_id.clone(), opts.signer_key.clone());
+
+    let access_key_response = rpc_client
+        .call(methods::query::RpcQueryRequest {
+            block_reference: BlockReference::latest(),
+            request: near_primitives::views::QueryRequest::ViewAccessKey {
+                account_id: signer.account_id.clone(),
+                public_key: signer.public_key.clone(),
+            },
+        })
+        .await?;
+
+    let nonce = match access_key_response.kind {
+        QueryResponseKind::AccessKey(access_key) => access_key.nonce,
+        _ => anyhow::bail!(
+            "Unreachable code: could not retrieve access key for {}",
+            signer.account_id
+        ),
+    };
+    Ok((nonce, access_key_response.block_hash))
 }
 
 #[cfg(test)]
@@ -187,7 +235,7 @@ mod tests {
     use super::*;
 
     const LOCATION: &str = "eu";
-    const NETWORK: &str = "testnet";
+    const NETWORK: &str = "localnet";
     const MIN_EXECUTIONS_IN_ONE_SECOND: u64 = 10;
 
     #[derive(Default)]
@@ -221,6 +269,8 @@ mod tests {
             _opts: Opts,
             _metrics: &Arc<Metrics>,
             _labels: &Labels,
+            _nonce: Nonce,
+            _block_hash: CryptoHash,
         ) -> anyhow::Result<Duration> {
             self.exec_counter
                 .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -259,6 +309,8 @@ mod tests {
             _opts: Opts,
             _metrics: &Arc<Metrics>,
             _labels: &Labels,
+            _nonce: Nonce,
+            _block_hash: CryptoHash,
         ) -> anyhow::Result<Duration> {
             self.exec_counter.fetch_add(1, Ordering::SeqCst);
             Err(anyhow::anyhow!("unknown error".to_string()))
@@ -268,7 +320,7 @@ mod tests {
     fn create_test_run_opts() -> Opts {
         Opts {
             mode: Mode::Run,
-            rpc_url: "https://rpc.testnet.near.org".to_string(),
+            rpc_url: "https://rpc.fake.near.org".to_string(),
             signer_id: "cat.near".parse().unwrap(),
             signer_key: SecretKey::from_random(KeyType::ED25519),
             receiver_id: "dog.near".parse().unwrap(),

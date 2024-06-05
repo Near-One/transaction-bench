@@ -1,12 +1,11 @@
 use async_trait::async_trait;
 use near_crypto::InMemorySigner;
 use near_jsonrpc_client::{methods, JsonRpcClient};
-use near_jsonrpc_primitives::types::query::QueryResponseKind;
 use near_jsonrpc_primitives::types::transactions::{
     RpcSendTransactionRequest, RpcTransactionError, TransactionInfo,
 };
 use near_primitives::hash::CryptoHash;
-use near_primitives::types::{BlockReference, Nonce};
+use near_primitives::types::Nonce;
 use std::sync::Arc;
 use std::time::Duration;
 use strum_macros::Display;
@@ -54,33 +53,15 @@ pub trait TransactionSample: Send + Sync {
         opts: Opts,
         metrics: &Arc<Metrics>,
         labels: &Labels,
+        nonce: Nonce,
+        block_hash: CryptoHash,
     ) -> anyhow::Result<Duration> {
         let now = Instant::now();
 
         let signer =
             InMemorySigner::from_secret_key(opts.signer_id.clone(), opts.signer_key.clone());
 
-        let access_key_response = rpc_client
-            .call(methods::query::RpcQueryRequest {
-                block_reference: BlockReference::latest(),
-                request: near_primitives::views::QueryRequest::ViewAccessKey {
-                    account_id: signer.account_id.clone(),
-                    public_key: signer.public_key.clone(),
-                },
-            })
-            .await?;
-
-        let current_nonce = match access_key_response.kind {
-            QueryResponseKind::AccessKey(access_key) => access_key.nonce,
-            _ => return Err(anyhow::anyhow!("Unreachable code")),
-        };
-
-        let request = self.get_transaction_request(
-            &signer,
-            opts,
-            current_nonce,
-            access_key_response.block_hash,
-        );
+        let request = self.get_transaction_request(&signer, opts, nonce, block_hash);
 
         match rpc_client.call(request.clone()).await {
             Ok(response) => {

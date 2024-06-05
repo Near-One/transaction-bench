@@ -55,7 +55,7 @@ pub struct Opts {
     pub transaction_kind: Vec<TransactionKind>,
     /// Number of times each transaction is performed at every benchmarking run
     #[clap(long, env, default_value_t = 1)]
-    pub repeats_number: u32,
+    pub repeats_number: usize,
     /// Time difference between benchmarking runs
     #[clap(env, short, long, value_parser = humantime::parse_duration, default_value = "15m")]
     pub period: std::time::Duration,
