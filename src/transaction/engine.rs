@@ -142,7 +142,8 @@ async fn run_account_transactions_once(
                 opts.signer_id
             );
 
-            let current_nonce = nonce.saturating_add((tx_number + repeats_number + 1) as u64);
+            let current_nonce =
+                nonce.saturating_add((tx_number * opts.repeats_number + repeats_number + 1) as u64);
             match tx_sample
                 .execute(
                     &rpc_client,

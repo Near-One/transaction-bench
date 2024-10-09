@@ -41,7 +41,7 @@ pub trait TransactionSample: Send + Sync {
 
     fn get_transaction_request(
         &self,
-        signer: &InMemorySigner,
+        signer: InMemorySigner,
         opts: Opts,
         nonce: Nonce,
         block_hash: CryptoHash,
@@ -61,7 +61,7 @@ pub trait TransactionSample: Send + Sync {
         let signer =
             InMemorySigner::from_secret_key(opts.signer_id.clone(), opts.signer_key.clone());
 
-        let request = self.get_transaction_request(&signer, opts, nonce, block_hash);
+        let request = self.get_transaction_request(signer, opts, nonce, block_hash);
 
         match rpc_client.call(request.clone()).await {
             Ok(response) => {
@@ -90,7 +90,7 @@ pub trait TransactionSample: Send + Sync {
                                 sender_account_id: request
                                     .signed_transaction
                                     .transaction
-                                    .signer_id
+                                    .signer_id()
                                     .clone(),
                             },
                             wait_until: request.wait_until.clone(),

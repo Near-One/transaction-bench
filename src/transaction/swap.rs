@@ -5,7 +5,7 @@ use near_crypto::InMemorySigner;
 use near_jsonrpc_primitives::types::transactions::RpcSendTransactionRequest;
 use near_primitives::action::FunctionCallAction;
 use near_primitives::hash::CryptoHash;
-use near_primitives::transaction::{Action, Transaction};
+use near_primitives::transaction::{Action, Transaction, TransactionV0};
 use near_primitives::types::Nonce;
 
 use super::TransactionKind;
@@ -24,13 +24,13 @@ impl TransactionSample for Swap {
 
     fn get_transaction_request(
         &self,
-        signer: &InMemorySigner,
+        signer: InMemorySigner,
         opts: Opts,
         nonce: Nonce,
         block_hash: CryptoHash,
     ) -> RpcSendTransactionRequest {
         let msg =  format!("{{\"actions\":[{{\"pool_id\":{},\"token_in\":\"{}\",\"token_out\":\"{}\",\"amount_in\":\"1000000000000000000000\",\"min_amount_out\":\"1\"}}]}}", opts.pool_id, opts.wrap_near_id, opts.ft_account_id);
-        let transaction = Transaction {
+        let transaction = Transaction::V0 (TransactionV0  {
             signer_id: signer.account_id.clone(),
             public_key: signer.public_key.clone(),
             nonce: nonce + 1,
@@ -51,9 +51,9 @@ impl TransactionSample for Swap {
                     deposit: 1,
                 })),
             ],
-        };
+        });
         RpcSendTransactionRequest {
-            signed_transaction: transaction.sign(signer),
+            signed_transaction: transaction.sign(&signer.into()),
             wait_until: Default::default(),
         }
     }
