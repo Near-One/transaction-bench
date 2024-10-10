@@ -256,7 +256,7 @@ mod tests {
 
         fn get_transaction_request(
             &self,
-            _: &InMemorySigner,
+            _: InMemorySigner,
             _: Opts,
             _: Nonce,
             _: CryptoHash,
@@ -296,7 +296,7 @@ mod tests {
 
         fn get_transaction_request(
             &self,
-            _: &InMemorySigner,
+            _: InMemorySigner,
             _: Opts,
             _: Nonce,
             _: CryptoHash,
