@@ -1,4 +1,4 @@
-FROM rust:1.77.0 as builder
+FROM rust:1.81.0 as builder
 RUN apt-get update && apt-get install -y curl libudev-dev && rm -rf /var/lib/apt/lists/*
 WORKDIR /usr/src/app
 COPY . .
