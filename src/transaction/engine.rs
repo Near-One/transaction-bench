@@ -326,6 +326,7 @@ mod tests {
             signer_id: "cat.near".parse().unwrap(),
             signer_key: SecretKey::from_random(KeyType::ED25519),
             receiver_id: "dog.near".parse().unwrap(),
+            mpc_contract_id: "frog.near".parse().unwrap(),
             wrap_near_id: "frog.near".parse().unwrap(),
             ft_account_id: "bear.near".parse().unwrap(),
             exchange_id: "flamingo.near".parse().unwrap(),

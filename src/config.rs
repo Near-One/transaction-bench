@@ -47,6 +47,9 @@ pub struct Opts {
     /// Exchange account id, used for swap
     #[clap(long, env)]
     pub exchange_id: AccountId,
+    /// MPC Contract account, used for MPC Sign
+    #[clap(long, env)]
+    pub mpc_contract_id: AccountId,
     /// Pool id for swap command
     #[clap(long, env)]
     pub pool_id: u32,

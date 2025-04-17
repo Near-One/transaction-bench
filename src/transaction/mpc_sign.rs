@@ -6,8 +6,7 @@ use near_jsonrpc_primitives::types::transactions::RpcSendTransactionRequest;
 use near_primitives::action::FunctionCallAction;
 use near_primitives::hash::CryptoHash;
 use near_primitives::transaction::{Action, Transaction, TransactionV0};
-use near_primitives::types::{AccountId, Nonce};
-use std::str::FromStr;
+use near_primitives::types::Nonce;
 
 use super::TransactionKind;
 
@@ -26,23 +25,21 @@ impl TransactionSample for MpcSign {
     fn get_transaction_request(
         &self,
         signer: InMemorySigner,
-        _opts: Opts,
+        opts: Opts,
         nonce: Nonce,
         block_hash: CryptoHash,
     ) -> RpcSendTransactionRequest {
-        let domain_id = "0";
-        let payload = serde_json::json!({
-            "Ecdsa": vec![1u8; 32]
-        });
+        let key_version = 0;
+        let payload = serde_json::json!(vec![1u8; 32]);
         let transaction = Transaction::V0(TransactionV0 {
             signer_id: signer.account_id.clone(),
             public_key: signer.public_key.clone(),
             nonce: nonce + 1,
-            receiver_id: AccountId::from_str("v1.signer-prod.testnet").unwrap(),
+            receiver_id: opts.mpc_contract_id,
             block_hash,
             actions: vec![Action::FunctionCall(Box::new(FunctionCallAction {
                 method_name: "sign".to_string(),
-                args: serde_json::json!({"domain_id": domain_id,"path": "","payload_v2": payload})
+                args: serde_json::json!({"request": {"key_version": key_version,"path": "","payload": payload}})
                     .to_string()
                     .into_bytes(),
                 gas: 10_000_000_000_000, // 10 TeraGas
