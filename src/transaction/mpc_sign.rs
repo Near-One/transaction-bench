@@ -52,13 +52,3 @@ impl TransactionSample for MpcSign {
         }
     }
 }
-
-// args: &serde_json::to_vec(&SignArgsV2 {
-//     request: SignRequestArgs {
-//         domain_id: Some(domain_config.id),
-//         path: "".to_string(),
-//         payload_v2: Some(payload),
-//         ..Default::default()
-//     },
-// })
-// .unwrap(),
