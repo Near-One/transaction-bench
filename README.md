@@ -8,6 +8,7 @@ An application to measure the end user latency of transactions on the Near block
 - Token transfer with [`wait_until: Final`](https://docs.near.org/api/rpc/transactions#tx-status-result)
 - Swap NEAR -> USDT
 - FT USDT transfer
+- MPC Sign requests
 
 ## Usage
 Run locally with `cargo` or build and run as a docker image:

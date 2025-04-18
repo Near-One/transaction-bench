@@ -18,6 +18,7 @@ use crate::metrics::{Labels, Metrics};
 pub mod engine;
 
 mod fungible_token_transfer;
+mod mpc_sign;
 mod swap;
 mod token_transfer_default;
 mod token_transfer_final;
@@ -31,6 +32,7 @@ pub enum TransactionKind {
     TokenTransferFinal,
     FungibleTokenTransfer,
     Swap,
+    MpcSign,
 }
 
 #[async_trait]

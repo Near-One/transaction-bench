@@ -10,7 +10,7 @@ use tracing::{error, info, warn};
 use crate::{
     metrics::{Labels, Metrics},
     transaction::{
-        fungible_token_transfer::FungibleTokenTransfer, swap::Swap,
+        fungible_token_transfer::FungibleTokenTransfer, mpc_sign::MpcSign, swap::Swap,
         token_transfer_default::TokenTransferDefault, token_transfer_final::TokenTransferFinal,
         token_transfer_included_final::TokenTransferIncludedFinal,
     },
@@ -45,6 +45,7 @@ impl Engine {
         add_transaction!(TokenTransferIncludedFinal);
         add_transaction!(FungibleTokenTransfer);
         add_transaction!(Swap);
+        add_transaction!(MpcSign);
 
         Engine { transactions }
     }
@@ -325,6 +326,7 @@ mod tests {
             signer_id: "cat.near".parse().unwrap(),
             signer_key: SecretKey::from_random(KeyType::ED25519),
             receiver_id: "dog.near".parse().unwrap(),
+            mpc_contract_id: "frog.near".parse().unwrap(),
             wrap_near_id: "frog.near".parse().unwrap(),
             ft_account_id: "bear.near".parse().unwrap(),
             exchange_id: "flamingo.near".parse().unwrap(),
