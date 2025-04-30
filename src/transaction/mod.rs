@@ -70,6 +70,7 @@ pub trait TransactionSample: Send + Sync {
         match rpc_client.call(request.clone()).await {
             Ok(response) => {
                 let successful = is_transaction_successful(&response);
+                debug!("execution outcome: {:?}", &response.final_execution_outcome);
                 debug!(
                     "successful response for {}, execution status: {:?}, successful:{}",
                     self.get_name(),

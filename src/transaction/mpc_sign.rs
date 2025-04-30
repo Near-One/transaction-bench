@@ -30,7 +30,7 @@ impl TransactionSample for MpcSign {
         block_hash: CryptoHash,
     ) -> RpcSendTransactionRequest {
         let key_version = 0;
-        let payload = serde_json::json!(vec![1u8; 32]);
+        let payload = serde_json::json!(vec![5u8; 32]);
         let transaction = Transaction::V0(TransactionV0 {
             signer_id: signer.account_id.clone(),
             public_key: signer.public_key.clone(),
@@ -48,7 +48,7 @@ impl TransactionSample for MpcSign {
         });
         RpcSendTransactionRequest {
             signed_transaction: transaction.sign(&signer.into()),
-            wait_until: TxExecutionStatus::IncludedFinal,
+            wait_until: TxExecutionStatus::Final,
         }
     }
 }
