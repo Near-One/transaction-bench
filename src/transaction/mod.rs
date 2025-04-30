@@ -14,6 +14,8 @@ use tracing::{debug, warn};
 
 use crate::config::Opts;
 use crate::metrics::{Labels, Metrics};
+use near_jsonrpc_client::methods::tx::RpcTransactionResponse;
+use near_primitives::views::{ExecutionStatusView, FinalExecutionStatus};
 
 pub mod engine;
 
@@ -67,12 +69,19 @@ pub trait TransactionSample: Send + Sync {
 
         match rpc_client.call(request.clone()).await {
             Ok(response) => {
+                let successful = is_transaction_successful(&response);
                 debug!(
-                    "successful {}, status: {:?}\n",
+                    "successful response for {}, execution status: {:?}, successful:{}",
                     self.get_name(),
                     response.final_execution_status,
+                    successful,
                 );
-                return Ok(now.elapsed());
+                successful.then(|| Ok(now.elapsed())).unwrap_or_else(|| {
+                    Err(anyhow::anyhow!(
+                        "{} failed: unsuccessful execution",
+                        self.get_name()
+                    ))
+                })
             }
             Err(err) => {
                 match err.handler_error() {
@@ -123,6 +132,27 @@ pub trait TransactionSample: Send + Sync {
                     }
                 }
             }
+        }
+    }
+}
+
+fn is_transaction_successful(response: &RpcTransactionResponse) -> bool {
+    match &response.final_execution_outcome {
+        Some(outcome_view) => {
+            let outcome = outcome_view.clone().into_outcome();
+            if !matches!(outcome.status, FinalExecutionStatus::SuccessValue(_)) {
+                return false;
+            }
+            outcome.receipts_outcome.iter().all(|receipt| {
+                matches!(
+                    receipt.outcome.status,
+                    ExecutionStatusView::SuccessReceiptId(_) | ExecutionStatusView::SuccessValue(_)
+                )
+            })
+        }
+        None => {
+            debug!("transaction has no outcome to be checked");
+            true
         }
     }
 }
