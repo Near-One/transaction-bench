@@ -14,8 +14,8 @@ use tracing::{debug, warn};
 
 use crate::config::Opts;
 use crate::metrics::{Labels, Metrics};
-use near_primitives::views::{ExecutionStatusView, FinalExecutionStatus};
 use near_jsonrpc_client::methods::tx::RpcTransactionResponse;
+use near_primitives::views::{ExecutionStatusView, FinalExecutionStatus};
 
 pub mod engine;
 
@@ -76,9 +76,12 @@ pub trait TransactionSample: Send + Sync {
                     response.final_execution_status,
                     successful,
                 );
-                successful
-                    .then(|| Ok(now.elapsed()))
-                    .unwrap_or_else(|| Err(anyhow::anyhow!("{} failed: unsuccessful execution", self.get_name())))
+                successful.then(|| Ok(now.elapsed())).unwrap_or_else(|| {
+                    Err(anyhow::anyhow!(
+                        "{} failed: unsuccessful execution",
+                        self.get_name()
+                    ))
+                })
             }
             Err(err) => {
                 match err.handler_error() {
