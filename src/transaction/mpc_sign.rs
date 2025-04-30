@@ -1,3 +1,4 @@
+use super::TransactionKind;
 use crate::config::Opts;
 use crate::TransactionSample;
 use async_trait::async_trait;
@@ -7,8 +8,7 @@ use near_primitives::action::FunctionCallAction;
 use near_primitives::hash::CryptoHash;
 use near_primitives::transaction::{Action, Transaction, TransactionV0};
 use near_primitives::types::Nonce;
-
-use super::TransactionKind;
+use near_primitives::views::TxExecutionStatus;
 
 pub struct MpcSign {}
 
@@ -48,7 +48,7 @@ impl TransactionSample for MpcSign {
         });
         RpcSendTransactionRequest {
             signed_transaction: transaction.sign(&signer.into()),
-            wait_until: Default::default(),
+            wait_until: TxExecutionStatus::IncludedFinal,
         }
     }
 }
