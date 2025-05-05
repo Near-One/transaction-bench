@@ -9,6 +9,7 @@ use near_primitives::hash::CryptoHash;
 use near_primitives::transaction::{Action, Transaction, TransactionV0};
 use near_primitives::types::Nonce;
 use near_primitives::views::TxExecutionStatus;
+use rand::Rng;
 
 pub struct MpcSign {}
 
@@ -30,7 +31,10 @@ impl TransactionSample for MpcSign {
         block_hash: CryptoHash,
     ) -> RpcSendTransactionRequest {
         let key_version = 0;
-        let payload = serde_json::json!(vec![5u8; 32]);
+        let mut rng = rand::thread_rng();
+        let mut random_bytes = [0u8; 32];
+        rng.fill(&mut random_bytes);
+        let payload = serde_json::json!(random_bytes.to_vec());
         let transaction = Transaction::V0(TransactionV0 {
             signer_id: signer.account_id.clone(),
             public_key: signer.public_key.clone(),
