@@ -81,11 +81,109 @@ impl Engine {
     }
 
     async fn run_impl(&self, opts: Opts, metrics: Arc<Metrics>) -> anyhow::Result<()> {
+        // If interval_overwrite is specified, run transactions with different intervals
+        if let Some(interval_overwrite) = opts.interval_overwrite.clone() {
+            self.run_with_custom_intervals(opts, metrics, &interval_overwrite)
+                .await
+        } else {
+            // Default behavior: run all transactions at the same interval
+            self.run_with_default_interval(opts, metrics).await
+        }
+    }
+
+    async fn run_with_default_interval(
+        &self,
+        opts: Opts,
+        metrics: Arc<Metrics>,
+    ) -> anyhow::Result<()> {
         let mut interval = interval(opts.period);
         loop {
             interval.tick().await;
             self.run_all_once(opts.clone(), &metrics).await;
         }
+    }
+
+    async fn run_with_custom_intervals(
+        &self,
+        opts: Opts,
+        metrics: Arc<Metrics>,
+        interval_overwrite: &HashMap<TransactionKind, std::time::Duration>,
+    ) -> anyhow::Result<()> {
+        let mut tasks = JoinSet::new();
+
+        // Clone necessary data before borrowing
+        let transactions = self.transactions.clone();
+        let default_interval = opts.period;
+
+        // Group transactions by their intervals
+        let mut interval_groups: HashMap<std::time::Duration, Vec<TransactionKind>> =
+            HashMap::new();
+
+        // Add transactions with custom intervals
+        for (kind, custom_interval) in interval_overwrite {
+            interval_groups
+                .entry(*custom_interval)
+                .or_default()
+                .push(kind.clone());
+        }
+
+        // Add remaining transactions to the default interval
+        let default_transactions: Vec<TransactionKind> = transactions
+            .keys()
+            .filter(|kind| !interval_overwrite.contains_key(kind))
+            .cloned()
+            .collect();
+
+        if !default_transactions.is_empty() {
+            interval_groups
+                .entry(default_interval)
+                .or_default()
+                .extend(default_transactions);
+        }
+
+        // Spawn a task for each interval group
+        for (interval_duration, transaction_kinds) in interval_groups {
+            let opts_clone = opts.clone();
+            let metrics_clone = metrics.clone();
+            let transactions_clone = transactions.clone();
+
+            tasks.spawn(async move {
+                let mut interval = interval(interval_duration);
+                loop {
+                    interval.tick().await;
+                    info!(
+                        "running transactions with interval {:?}: {:?}",
+                        interval_duration, transaction_kinds
+                    );
+
+                    // Filter transactions to only run the ones in this interval group
+                    let filtered_transactions: HashMap<
+                        TransactionKind,
+                        Arc<dyn TransactionSample>,
+                    > = transactions_clone
+                        .iter()
+                        .filter(|(kind, _)| transaction_kinds.contains(kind))
+                        .map(|(kind, tx)| (kind.clone(), tx.clone()))
+                        .collect();
+
+                    run_account_transactions_once(
+                        filtered_transactions,
+                        opts_clone.clone(),
+                        metrics_clone.clone(),
+                    )
+                    .await;
+                }
+            });
+        }
+
+        // Wait for all tasks to complete (they won't unless there's an error)
+        while let Some(join_result) = tasks.join_next().await {
+            if let Err(err) = join_result {
+                warn!("error during transaction execution: {}", err);
+            }
+        }
+
+        Ok(())
     }
 
     async fn run_all_once(&self, opts: Opts, metrics: &Arc<Metrics>) {
@@ -333,6 +431,7 @@ mod tests {
             pool_id: 0,
             transaction_kind: vec![],
             period: Duration::from_millis(1),
+            interval_overwrite: None,
             metric_server_address: SocketAddr::from_str("0.0.0.0:9000").unwrap(),
             location: LOCATION.to_string(),
             repeats_number: 1,

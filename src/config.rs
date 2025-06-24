@@ -2,7 +2,9 @@ use crate::TransactionKind;
 use clap::{Parser, Subcommand};
 use near_crypto::SecretKey;
 use near_primitives::types::AccountId;
+use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::str::FromStr;
 
 #[derive(clap::ValueEnum, Debug, Clone, Subcommand)]
 pub enum Mode {
@@ -62,10 +64,85 @@ pub struct Opts {
     /// Time difference between benchmarking runs
     #[clap(env, short, long, value_parser = humantime::parse_duration, default_value = "15m")]
     pub period: std::time::Duration,
+    /// Override intervals for specific transaction types (JSON format: {"MpcSign": "5m", "Swap": "10m"})
+    #[clap(env, long, value_parser = parse_interval_overwrite)]
+    pub interval_overwrite: Option<HashMap<TransactionKind, std::time::Duration>>,
     /// Metric server address.
     #[clap(env, long, default_value = "0.0.0.0:9000")]
     pub metric_server_address: SocketAddr,
     /// Geographical location identifier.
     #[clap(env, short, long, default_value = "unknown")]
     pub location: String,
+}
+
+/// Parse interval overwrite from JSON string
+fn parse_interval_overwrite(
+    s: &str,
+) -> Result<HashMap<TransactionKind, std::time::Duration>, String> {
+    let json_value: serde_json::Value =
+        serde_json::from_str(s).map_err(|e| format!("Failed to parse JSON: {}", e))?;
+
+    let mut result = HashMap::new();
+
+    if let Some(obj) = json_value.as_object() {
+        for (key, value) in obj {
+            let transaction_kind = TransactionKind::from_str(key)
+                .map_err(|_| format!("Unknown transaction kind: {}", key))?;
+
+            let duration_str = value
+                .as_str()
+                .ok_or_else(|| format!("Value for {} must be a string", key))?;
+
+            let duration = humantime::parse_duration(duration_str)
+                .map_err(|e| format!("Invalid duration for {}: {}", key, e))?;
+
+            result.insert(transaction_kind, duration);
+        }
+    } else {
+        return Err("Interval overwrite must be a JSON object".to_string());
+    }
+
+    Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_interval_overwrite() {
+        let json = r#"{"mpc-sign": "5m", "swap": "10m"}"#;
+        let result = parse_interval_overwrite(json).unwrap();
+
+        assert_eq!(result.len(), 2);
+        assert_eq!(
+            result.get(&TransactionKind::MpcSign).unwrap(),
+            &std::time::Duration::from_secs(300)
+        ); // 5 minutes
+        assert_eq!(
+            result.get(&TransactionKind::Swap).unwrap(),
+            &std::time::Duration::from_secs(600)
+        ); // 10 minutes
+    }
+
+    #[test]
+    fn test_parse_interval_overwrite_invalid_json() {
+        let json = r#"{"MpcSign": "5m", "Swap":}"#;
+        let result = parse_interval_overwrite(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_interval_overwrite_invalid_transaction() {
+        let json = r#"{"InvalidTransaction": "5m"}"#;
+        let result = parse_interval_overwrite(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_interval_overwrite_invalid_duration() {
+        let json = r#"{"MpcSign": "invalid"}"#;
+        let result = parse_interval_overwrite(json);
+        assert!(result.is_err());
+    }
 }

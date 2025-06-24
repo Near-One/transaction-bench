@@ -8,7 +8,7 @@ use near_primitives::hash::CryptoHash;
 use near_primitives::types::Nonce;
 use std::sync::Arc;
 use std::time::Duration;
-use strum_macros::Display;
+use strum_macros::{Display, EnumString};
 use tokio::time::Instant;
 use tracing::{debug, warn};
 
@@ -26,7 +26,7 @@ mod token_transfer_default;
 mod token_transfer_final;
 mod token_transfer_included_final;
 
-#[derive(clap::ValueEnum, Debug, PartialEq, Eq, Hash, Display, Clone)]
+#[derive(clap::ValueEnum, Debug, PartialEq, Eq, Hash, Display, EnumString, Clone)]
 #[strum(serialize_all = "kebab-case")]
 pub enum TransactionKind {
     TokenTransferDefault,
@@ -77,12 +77,14 @@ pub trait TransactionSample: Send + Sync {
                     response.final_execution_status,
                     successful,
                 );
-                successful.then(|| Ok(now.elapsed())).unwrap_or_else(|| {
+                if successful {
+                    Ok(now.elapsed())
+                } else {
                     Err(anyhow::anyhow!(
                         "{} failed: unsuccessful execution",
                         self.get_name()
                     ))
-                })
+                }
             }
             Err(err) => {
                 match err.handler_error() {
