@@ -2,8 +2,8 @@ use crate::TransactionKind;
 use clap::{Parser, Subcommand};
 use near_crypto::SecretKey;
 use near_primitives::types::AccountId;
-use std::net::SocketAddr;
 use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::str::FromStr;
 
 #[derive(clap::ValueEnum, Debug, Clone, Subcommand)]
@@ -76,29 +76,32 @@ pub struct Opts {
 }
 
 /// Parse interval overwrite from JSON string
-fn parse_interval_overwrite(s: &str) -> Result<HashMap<TransactionKind, std::time::Duration>, String> {
-    let json_value: serde_json::Value = serde_json::from_str(s)
-        .map_err(|e| format!("Failed to parse JSON: {}", e))?;
-    
+fn parse_interval_overwrite(
+    s: &str,
+) -> Result<HashMap<TransactionKind, std::time::Duration>, String> {
+    let json_value: serde_json::Value =
+        serde_json::from_str(s).map_err(|e| format!("Failed to parse JSON: {}", e))?;
+
     let mut result = HashMap::new();
-    
+
     if let Some(obj) = json_value.as_object() {
         for (key, value) in obj {
             let transaction_kind = TransactionKind::from_str(key)
                 .map_err(|_| format!("Unknown transaction kind: {}", key))?;
-            
-            let duration_str = value.as_str()
+
+            let duration_str = value
+                .as_str()
                 .ok_or_else(|| format!("Value for {} must be a string", key))?;
-            
+
             let duration = humantime::parse_duration(duration_str)
                 .map_err(|e| format!("Invalid duration for {}: {}", key, e))?;
-            
+
             result.insert(transaction_kind, duration);
         }
     } else {
         return Err("Interval overwrite must be a JSON object".to_string());
     }
-    
+
     Ok(result)
 }
 
@@ -110,10 +113,16 @@ mod tests {
     fn test_parse_interval_overwrite() {
         let json = r#"{"mpc-sign": "5m", "swap": "10m"}"#;
         let result = parse_interval_overwrite(json).unwrap();
-        
+
         assert_eq!(result.len(), 2);
-        assert_eq!(result.get(&TransactionKind::MpcSign).unwrap(), &std::time::Duration::from_secs(300)); // 5 minutes
-        assert_eq!(result.get(&TransactionKind::Swap).unwrap(), &std::time::Duration::from_secs(600)); // 10 minutes
+        assert_eq!(
+            result.get(&TransactionKind::MpcSign).unwrap(),
+            &std::time::Duration::from_secs(300)
+        ); // 5 minutes
+        assert_eq!(
+            result.get(&TransactionKind::Swap).unwrap(),
+            &std::time::Duration::from_secs(600)
+        ); // 10 minutes
     }
 
     #[test]
