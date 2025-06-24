@@ -77,12 +77,14 @@ pub trait TransactionSample: Send + Sync {
                     response.final_execution_status,
                     successful,
                 );
-                successful.then(|| Ok(now.elapsed())).unwrap_or_else(|| {
+                if successful {
+                    Ok(now.elapsed())
+                } else {
                     Err(anyhow::anyhow!(
                         "{} failed: unsuccessful execution",
                         self.get_name()
                     ))
-                })
+                }
             }
             Err(err) => {
                 match err.handler_error() {
