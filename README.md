@@ -19,6 +19,39 @@ docker run --rm -it tx-bench
 
 You can also run it without Docker, follow the usual Rust workflow.
 
+## Configuration
+
+### Environment Variables
+
+The application can be configured using environment variables:
+
+- `PERIOD`: Default interval between transaction runs (default: 15m)
+- `INTERVAL_OVERWRITE`: JSON object to override intervals for specific transaction types
+
+### Custom Transaction Intervals
+
+You can run different transaction types at different intervals using the `INTERVAL_OVERWRITE` environment variable. This is useful when you want to run certain transactions more frequently than others.
+
+Example: Run MpcSign every 5 minutes and Swap every 10 minutes, while keeping other transactions at the default 15-minute interval:
+
+```bash
+export INTERVAL_OVERWRITE='{"MpcSign": "5m", "Swap": "10m"}'
+```
+
+The JSON format supports all transaction types:
+- `TokenTransferDefault`
+- `TokenTransferIncludedFinal` 
+- `TokenTransferFinal`
+- `FungibleTokenTransfer`
+- `Swap`
+- `MpcSign`
+
+Duration formats supported:
+- `5m` (5 minutes)
+- `10s` (10 seconds)
+- `1h` (1 hour)
+- `30m` (30 minutes)
+
 ## CI
 The CI checks that the project compiles successfully at every commit. Docker images are pushed to the registry only by tagged builds.
 
