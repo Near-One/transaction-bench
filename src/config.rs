@@ -65,7 +65,7 @@ pub struct Opts {
     #[clap(env, short, long, value_parser = humantime::parse_duration, default_value = "15m")]
     pub period: std::time::Duration,
     /// Time delay between each intervalgroup of transactions
-    #[clap(env, short, long, value_parser = humantime::parse_duration, default_value = "3s")]
+    #[clap(env, short, long, value_parser = humantime::parse_duration, default_value = "5s")]
     pub group_delay: std::time::Duration,
     /// Override intervals for specific transaction types (JSON format: {"MpcSign": "5m", "Swap": "10m"})
     #[clap(env, long, value_parser = parse_interval_overwrite)]
