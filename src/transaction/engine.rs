@@ -148,9 +148,9 @@ impl Engine {
             let transactions_clone = transactions.clone();
 
             tasks.spawn(async move {
-                // Add 2 second delay between each interval group start
+                // Add 3 second delay between each interval group start
                 if task_id > 0 {
-                    tokio::time::sleep(tokio::time::Duration::from_secs(5 * task_id as u64)).await;
+                    tokio::time::sleep(tokio::time::Duration::from_secs(3 * task_id as u64)).await;
                 }
                 
                 let mut interval = interval(interval_duration);
