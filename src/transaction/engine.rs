@@ -142,12 +142,19 @@ impl Engine {
         }
 
         // Spawn a task for each interval group
-        for (interval_duration, transaction_kinds) in interval_groups {
+        for (task_id, (interval_duration, transaction_kinds)) in
+            interval_groups.into_iter().enumerate()
+        {
             let opts_clone = opts.clone();
             let metrics_clone = metrics.clone();
             let transactions_clone = transactions.clone();
 
             tasks.spawn(async move {
+                // Add 3 second delay between each interval group start
+                if task_id > 0 {
+                    tokio::time::sleep(tokio::time::Duration::from_secs(3 * task_id as u64)).await;
+                }
+
                 let mut interval = interval(interval_duration);
                 loop {
                     interval.tick().await;
