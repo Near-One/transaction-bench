@@ -114,6 +114,8 @@ impl Engine {
         // Clone necessary data before borrowing
         let transactions = self.transactions.clone();
         let default_interval = opts.period;
+        let group_delay = opts.group_delay;
+        info!("group delay: {:?}", group_delay);
 
         // Group transactions by their intervals
         let mut interval_groups: HashMap<std::time::Duration, Vec<TransactionKind>> =
@@ -152,7 +154,7 @@ impl Engine {
             tasks.spawn(async move {
                 // Add 3 second delay between each interval group start
                 if task_id > 0 {
-                    tokio::time::sleep(tokio::time::Duration::from_secs(3 * task_id as u64)).await;
+                    tokio::time::sleep(group_delay).await;
                 }
 
                 let mut interval = interval(interval_duration);
@@ -438,6 +440,7 @@ mod tests {
             pool_id: 0,
             transaction_kind: vec![],
             period: Duration::from_millis(1),
+            group_delay: Duration::from_secs(3),
             interval_overwrite: None,
             metric_server_address: SocketAddr::from_str("0.0.0.0:9000").unwrap(),
             location: LOCATION.to_string(),
