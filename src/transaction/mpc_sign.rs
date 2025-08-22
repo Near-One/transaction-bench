@@ -46,7 +46,7 @@ impl TransactionSample for MpcSign {
                 args: serde_json::json!({"request": {"key_version": key_version,"path": "","payload": payload}})
                     .to_string()
                     .into_bytes(),
-                gas: 10_000_000_000_000, // 10 TeraGas
+                gas: 15_000_000_000_000, // 15 TeraGas
                 deposit: 1,
             }))],
         });
