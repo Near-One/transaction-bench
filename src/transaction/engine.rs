@@ -11,7 +11,7 @@ use crate::{
     metrics::{Labels, Metrics},
     transaction::{
         fungible_token_transfer::FungibleTokenTransfer,
-        mpc::{MpcCkd, MpcSignEcdsa, MpcSignEddsa},
+        mpc::{MpcSignEcdsa, MpcSignEddsa},
         swap::Swap,
         token_transfer_default::TokenTransferDefault,
         token_transfer_final::TokenTransferFinal,
@@ -51,7 +51,7 @@ impl Engine {
         add_transaction!(MpcSignEcdsa);
         add_transaction!(MpcSignEddsa);
         // This is not yet functional, so failures are expected for these transactions
-        add_transaction!(MpcCkd);
+        // add_transaction!(MpcCkd);
 
         Engine { transactions }
     }

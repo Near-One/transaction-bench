@@ -13,6 +13,7 @@ use rand::Rng;
 
 pub struct MpcSignEcdsa {}
 pub struct MpcSignEddsa {}
+#[allow(unused)]
 pub struct MpcCkd {}
 
 #[async_trait]
@@ -135,7 +136,7 @@ impl TransactionSample for MpcCkd {
             receiver_id: opts.mpc_contract_id,
             block_hash,
             actions: vec![Action::FunctionCall(Box::new(FunctionCallAction {
-                method_name: "sign".to_string(),
+                method_name: "request_app_private_key".to_string(),
                 args: serde_json::json!({"request": {"domain_id": domain_id,"app_public_key": app_public_key}})
                     .to_string()
                     .into_bytes(),
