@@ -121,8 +121,6 @@ impl Engine {
         // Clone necessary data before borrowing
         let transactions = self.transactions.clone();
         let default_interval = opts.period;
-        let group_delay = opts.group_delay;
-        info!("group delay: {:?}", group_delay);
 
         // Group transactions by their intervals
         let mut interval_groups: HashMap<std::time::Duration, Vec<TransactionKind>> =
@@ -444,7 +442,6 @@ mod tests {
             pool_id: 0,
             transaction_kind: vec![],
             period: Duration::from_millis(1),
-            group_delay: Duration::from_secs(3),
             interval_overwrite: None,
             metric_server_address: SocketAddr::from_str("0.0.0.0:9000").unwrap(),
             location: LOCATION.to_string(),
