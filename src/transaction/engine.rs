@@ -3,6 +3,7 @@ use near_jsonrpc_client::{methods, JsonRpcClient};
 use near_jsonrpc_primitives::types::query::QueryResponseKind;
 use near_primitives::hash::CryptoHash;
 use near_primitives::types::{BlockReference, Nonce};
+use rand::Rng;
 use std::{collections::HashMap, sync::Arc};
 
 use tracing::{error, info, warn};
@@ -256,8 +257,11 @@ async fn run_account_transactions_once(
                 opts.signer_id
             );
 
-            let current_nonce =
-                nonce.saturating_add((tx_number * opts.repeats_number + repeats_number + 1) as u64);
+            // Add a small random offset to avoid nonce conflicts when multiple instances run concurrently
+            let random_offset: u64 = rand::thread_rng().gen_range(0..=1000);
+            let current_nonce = nonce.saturating_add(
+                (tx_number * opts.repeats_number + repeats_number + 1) as u64 + random_offset,
+            );
             match tx_sample
                 .execute(
                     &rpc_client,
