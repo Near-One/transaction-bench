@@ -67,7 +67,7 @@ pub struct Opts {
     /// Time delay between each intervalgroup of transactions
     #[clap(env, short, long, value_parser = humantime::parse_duration, default_value = "5s")]
     pub group_delay: std::time::Duration,
-    /// Override intervals for specific transaction types (JSON format: {"MpcSign": "5m", "Swap": "10m"})
+    /// Override intervals for specific transaction types (JSON format: {"MpcSignEcdsa": "5m", "Swap": "10m"})
     #[clap(env, long, value_parser = parse_interval_overwrite)]
     pub interval_overwrite: Option<HashMap<TransactionKind, std::time::Duration>>,
     /// Metric server address.
@@ -114,12 +114,12 @@ mod tests {
 
     #[test]
     fn test_parse_interval_overwrite() {
-        let json = r#"{"mpc-sign": "5m", "swap": "10m"}"#;
+        let json = r#"{"mpc-sign-ecdsa": "5m", "swap": "10m"}"#;
         let result = parse_interval_overwrite(json).unwrap();
 
         assert_eq!(result.len(), 2);
         assert_eq!(
-            result.get(&TransactionKind::MpcSign).unwrap(),
+            result.get(&TransactionKind::MpcSignEcdsa).unwrap(),
             &std::time::Duration::from_secs(300)
         ); // 5 minutes
         assert_eq!(
@@ -130,7 +130,7 @@ mod tests {
 
     #[test]
     fn test_parse_interval_overwrite_invalid_json() {
-        let json = r#"{"MpcSign": "5m", "Swap":}"#;
+        let json = r#"{"mpc-sign-ecdsa": "5m", "Swap":}"#;
         let result = parse_interval_overwrite(json);
         assert!(result.is_err());
     }
@@ -144,7 +144,7 @@ mod tests {
 
     #[test]
     fn test_parse_interval_overwrite_invalid_duration() {
-        let json = r#"{"MpcSign": "invalid"}"#;
+        let json = r#"{"mpc-sign-ecdsa": "invalid"}"#;
         let result = parse_interval_overwrite(json);
         assert!(result.is_err());
     }

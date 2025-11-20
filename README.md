@@ -32,10 +32,10 @@ The application can be configured using environment variables:
 
 You can run different transaction types at different intervals using the `INTERVAL_OVERWRITE` environment variable. This is useful when you want to run certain transactions more frequently than others.
 
-Example: Run MpcSign every 5 minutes and Swap every 10 minutes, while keeping other transactions at the default 15-minute interval:
+Example: Run MpcSignEcdsa every 5 minutes and Swap every 10 minutes, while keeping other transactions at the default 15-minute interval:
 
 ```bash
-export INTERVAL_OVERWRITE='{"MpcSign": "5m", "Swap": "10m"}'
+export INTERVAL_OVERWRITE='{"MpcSignEcdsa": "5m", "Swap": "10m"}'
 ```
 
 The JSON format supports all transaction types:
@@ -44,7 +44,9 @@ The JSON format supports all transaction types:
 - `TokenTransferFinal`
 - `FungibleTokenTransfer`
 - `Swap`
-- `MpcSign`
+- `MpcSignEcdsa`
+- `MpcSignEddsa`
+- `MpcCkd`
 
 Duration formats supported:
 - `5m` (5 minutes)

@@ -10,8 +10,11 @@ use tracing::{error, info, warn};
 use crate::{
     metrics::{Labels, Metrics},
     transaction::{
-        fungible_token_transfer::FungibleTokenTransfer, mpc_sign::MpcSign, swap::Swap,
-        token_transfer_default::TokenTransferDefault, token_transfer_final::TokenTransferFinal,
+        fungible_token_transfer::FungibleTokenTransfer,
+        mpc::{MpcSignEcdsa, MpcSignEddsa},
+        swap::Swap,
+        token_transfer_default::TokenTransferDefault,
+        token_transfer_final::TokenTransferFinal,
         token_transfer_included_final::TokenTransferIncludedFinal,
     },
     TransactionSample,
@@ -45,7 +48,10 @@ impl Engine {
         add_transaction!(TokenTransferIncludedFinal);
         add_transaction!(FungibleTokenTransfer);
         add_transaction!(Swap);
-        add_transaction!(MpcSign);
+        add_transaction!(MpcSignEcdsa);
+        add_transaction!(MpcSignEddsa);
+        // This is not yet functional, so failures are expected for these transactions
+        // add_transaction!(MpcCkd);
 
         Engine { transactions }
     }
